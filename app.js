@@ -1,4 +1,4 @@
-// IMPORTAÇÃO DOS MÓDULOS WEB DO FIREBASE (CDN) 
+// IMPORTAÇÃO DOS MÓDULOS WEB DO FIREBASE (CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
