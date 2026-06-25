@@ -39,12 +39,15 @@ let catalogGames = [];
 let selectedGames = [];
 
 // ==========================================
-// CONTROLE DE TELAS E ABAS (100% INDEPENDENTE)
+// CONTROLE DE TELAS E ABAS
 // ==========================================
 const tabUser = document.getElementById('tab-user');
 const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
 const formAdmin = document.getElementById('form-admin');
+
+const btnSubmitUser = document.getElementById('btn-submit-user');
+const btnSubmitAdmin = document.getElementById('btn-submit-admin');
 
 tabUser.addEventListener('click', (e) => {
     e.preventDefault();
@@ -59,6 +62,7 @@ tabUser.addEventListener('click', (e) => {
         input.removeAttribute('required');
         input.value = ""; 
     });
+    resetButtonState(btnSubmitAdmin, "Acessar Painel");
 });
 
 tabAdmin.addEventListener('click', (e) => {
@@ -74,6 +78,7 @@ tabAdmin.addEventListener('click', (e) => {
         input.removeAttribute('required');
         input.value = ""; 
     });
+    resetButtonState(btnSubmitUser, "Entrar no Sistema");
 });
 
 function showScreen(screenId) {
@@ -81,11 +86,24 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.add('active');
 }
 
+// Funções Auxiliares de Feedback Visual nos Botões
+function setButtonLoadingState(button) {
+    button.disabled = true;
+    button.classList.add('loading');
+    button.innerText = "ENTRANDO...";
+}
+
+function resetButtonState(button, originalText) {
+    button.disabled = false;
+    button.classList.remove('loading');
+    button.innerText = originalText;
+}
+
 // ==========================================
-// FLUXO DE AUTENTICAÇÃO (COM FALLBACK LOCAL)
+// FLUXO DE AUTENTICAÇÃO (COM SUPORTE A ENTER NATÍVO)
 // ==========================================
 
-document.getElementById('btn-submit-user').addEventListener('click', (e) => {
+formUser.addEventListener('submit', (e) => {
     e.preventDefault();
     
     const masterPass = document.getElementById('master-password').value;
@@ -94,10 +112,8 @@ document.getElementById('btn-submit-user').addEventListener('click', (e) => {
     const whatsapp = document.getElementById('user-whatsapp').value;
     const city = document.getElementById('user-city').value;
 
-    if (!masterPass || !name || !lastname || !whatsapp || !city) {
-        alert("Por favor, preencha todos os campos obrigatórios do cliente!");
-        return;
-    }
+    // Ativa animação e bloqueio de cliques
+    setButtonLoadingState(btnSubmitUser);
     
     currentUserData = { name, lastname, whatsapp, city, role: 'user' };
 
@@ -111,24 +127,29 @@ document.getElementById('btn-submit-user').addEventListener('click', (e) => {
             .then(() => {
                 showScreen('drive-selection-screen');
                 formUser.reset();
+                resetButtonState(btnSubmitUser, "Entrar no Sistema");
             })
-            .catch(err => alert("Senha Master Inválida! Erro: " + err.message));
+            .catch(err => {
+                alert("Senha Master Inválida! Erro: " + err.message);
+                resetButtonState(btnSubmitUser, "Entrar no Sistema");
+            });
     } else {
-        // Se o Firebase não estiver configurado, deixa passar para você testar as telas do sistema
-        alert("[MODO TESTE LOCAL]: Acesso concedido sem Firebase.");
-        showScreen('drive-selection-screen');
+        // Simulação com timeout para você enxergar o efeito visual "ENTRANDO..."
+        setTimeout(() => {
+            alert("[MODO TESTE LOCAL]: Acesso concedido sem Firebase.");
+            showScreen('drive-selection-screen');
+            resetButtonState(btnSubmitUser, "Entrar no Sistema");
+        }, 1200);
     }
 });
 
-document.getElementById('btn-submit-admin').addEventListener('click', (e) => {
+formAdmin.addEventListener('submit', (e) => {
     e.preventDefault();
     const email = document.getElementById('admin-email').value;
     const pass = document.getElementById('admin-password').value;
 
-    if (!email || !pass) {
-        alert("Por favor, preencha o E-mail e Senha do Admin!");
-        return;
-    }
+    // Ativa animação e bloqueio de cliques
+    setButtonLoadingState(btnSubmitAdmin);
 
     if (isFirebaseConnected) {
         signInWithEmailAndPassword(auth, email, pass)
@@ -136,31 +157,56 @@ document.getElementById('btn-submit-admin').addEventListener('click', (e) => {
                 currentUserData = { role: 'admin' };
                 showScreen('admin-screen');
                 formAdmin.reset();
+                resetButtonState(btnSubmitAdmin, "Acessar Painel");
             })
-            .catch(err => alert("Acesso Administrativo Negado! Verifique email e senha."));
+            .catch(err => {
+                alert("Acesso Administrativo Negado! Verifique email e senha.");
+                resetButtonState(btnSubmitAdmin, "Acessar Painel");
+            });
     } else {
-        // Deixa entrar direto no painel Admin para você testar as responsividades locais
-        alert("[MODO TESTE LOCAL]: Painel Admin aberto sem Firebase.");
-        currentUserData = { role: 'admin' };
-        showScreen('admin-screen');
+        // Simulação com timeout para você enxergar o efeito visual "ENTRANDO..."
+        setTimeout(() => {
+            alert("[MODO TESTE LOCAL]: Painel Admin aberto sem Firebase.");
+            currentUserData = { role: 'admin' };
+            showScreen('admin-screen');
+            resetButtonState(btnSubmitAdmin, "Acessar Painel");
+        }, 1200);
     }
 });
 
+// Executa limpeza geral da memória local ao deslogar
+function processClearLogout() {
+    if (isFirebaseConnected) signOut(auth);
+    
+    // Reseta estados na memória do script
+    currentUserData = null;
+    currentDrive = { size: 0, limit: 0 };
+    selectedGames = [];
+    catalogGames = [];
+    
+    // Limpa de forma absoluta cookies, session e localstorage locais do navegador
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Reseta todos os formulários visualmente
+    formUser.reset();
+    formAdmin.reset();
+    
+    // Garante que os botões voltam ao estado padrão original
+    resetButtonState(btnSubmitUser, "Entrar no Sistema");
+    resetButtonState(btnSubmitAdmin, "Acessar Painel");
+    
+    showScreen('auth-screen');
+}
+
 // Botões de Desconexão (Sair)
-document.getElementById('logout-btn').addEventListener('click', () => {
-    if (isFirebaseConnected) signOut(auth);
-    showScreen('auth-screen');
-});
-document.getElementById('admin-logout-btn').addEventListener('click', () => {
-    if (isFirebaseConnected) signOut(auth);
-    showScreen('auth-screen');
-});
+document.getElementById('logout-btn').addEventListener('click', processClearLogout);
+document.getElementById('admin-logout-btn').addEventListener('click', processClearLogout);
 
 if (isFirebaseConnected) {
     onAuthStateChanged(auth, (user) => {
         if (!user) {
-            showScreen('auth-screen');
-            selectedGames = [];
+            processClearLogout();
         }
     });
 }
@@ -192,7 +238,6 @@ document.getElementById('btn-back-drives').addEventListener('click', () => {
 // ==========================================
 function loadCatalog() {
     if (!isFirebaseConnected) {
-        // Catálogo fictício para testes locais caso o Firebase não esteja pronto
         catalogGames = [
             { id: "1", title: "GTA San Andreas", size: "4.3" },
             { id: "2", title: "Resident Evil 4", size: "3.5" },
@@ -318,18 +363,18 @@ document.getElementById('btn-generate-list').addEventListener('click', () => {
             push(ordersRef, newOrder)
                 .then(() => {
                     alert("🎮 Lista enviada com sucesso para produção!");
-                    showScreen('auth-screen');
+                    processClearLogout();
                 })
                 .catch(err => alert("Erro ao registrar pedido: " + err.message));
         } else {
-            alert("[MODO TESTE LOCAL]: Sucesso! Sua imagem Base64 foi gerada localmente. Insira os dados do Firebase para persistir.");
-            showScreen('auth-screen');
+            alert("[MODO TESTE LOCAL]: Lista simulada gerada com sucesso!");
+            processClearLogout();
         }
     });
 });
 
 // ==========================================
-// PAINEL DO ADMINISTRADOR (CADASTRO LOCAL/REMOTO)
+// PAINEL DO ADMINISTRADOR (CADASTRO)
 // ==========================================
 
 document.getElementById('form-add-game').addEventListener('submit', (e) => {
@@ -347,7 +392,7 @@ document.getElementById('form-add-game').addEventListener('submit', (e) => {
             document.getElementById('form-add-game').reset();
         });
     } else {
-        alert(`[MODO TESTE LOCAL]: Jogo "${title}" (${size} GB) simulado com sucesso.`);
+        alert(`[MODO TESTE LOCAL]: Jogo "${title}" (${size} GB) simulado.`);
         document.getElementById('form-add-game').reset();
     }
 });
