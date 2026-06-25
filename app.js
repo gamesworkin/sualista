@@ -158,7 +158,7 @@ formUserRegister.addEventListener('submit', (e) => {
 
     if (masterPass !== systemMasterPassword) {
         alert("❌ Senha Master de validação incorreta! Operação cancelada.");
-        resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+        resetButtonState(btnSubmitUserRegister, "Criar My Conta");
         return;
     }
 
@@ -170,31 +170,31 @@ formUserRegister.addEventListener('submit', (e) => {
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 alert("❌ Este username já está sendo utilizado por outro cliente!");
-                resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+                resetButtonState(btnSubmitUserRegister, "Criar My Conta");
             } else {
                 set(userRef, newUserPayload).then(() => {
                     alert("🎉 Conta criada com sucesso! Faça login com suas credenciais.");
                     formUserRegister.reset();
-                    resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+                    resetButtonState(btnSubmitUserRegister, "Criar My Conta");
                     linkGoToLogin.click();
                 });
             }
         }).catch(err => {
             alert("Erro ao checar banco: " + err.message);
-            resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+            resetButtonState(btnSubmitUserRegister, "Criar My Conta");
         });
     } else {
         let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
         if (localUsers[username]) {
             alert("❌ Username indisponível.");
-            resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+            resetButtonState(btnSubmitUserRegister, "Criar My Conta");
             return;
         }
         localUsers[username] = newUserPayload;
         localStorage.setItem('mock_users_db', JSON.stringify(localUsers));
         alert("[MOCK]: Conta criada localmente!");
         formUserRegister.reset();
-        resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
+        resetButtonState(btnSubmitUserRegister, "Criar My Conta");
         linkGoToLogin.click();
     }
 });
@@ -217,7 +217,7 @@ formUserLogin.addEventListener('submit', (e) => {
         get(ref(database, `users/${usernameInput}`)).then((snapshot) => {
             if (snapshot.exists()) {
                 currentUserData = snapshot.val();
-                localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
+                localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
                 
                 setupClientEnvironment();
                 resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
@@ -235,7 +235,7 @@ formUserLogin.addEventListener('submit', (e) => {
         let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
         if (localUsers[usernameInput]) {
             currentUserData = localUsers[usernameInput];
-            localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
+            localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
             setupClientEnvironment();
             resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
             showScreen('drive-selection-screen');
@@ -268,7 +268,7 @@ formAdmin.addEventListener('submit', (e) => {
         signInWithEmailAndPassword(auth, email, pass)
             .then((userCredential) => {
                 currentUserData = { email: userCredential.user.email, role: 'admin' };
-                localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
+                localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
                 executeAdminLoginFlow();
             })
             .catch(err => {
@@ -278,7 +278,7 @@ formAdmin.addEventListener('submit', (e) => {
     } else {
         if (email === "admin@teste.com" && pass === "123456") {
             currentUserData = { email, role: 'admin' };
-            localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
+            localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
             executeAdminLoginFlow();
         } else {
             alert("[MOCK]: Utilize admin@teste.com e 123456");
@@ -293,11 +293,12 @@ function executeAdminLoginFlow() {
     resetButtonState(btnSubmitAdmin, "Acessar Painel");
     syncCatalogToAdminPanel();
     syncUsersToAdminPanel();
+    loadGlobalOrdersForAdmin();
 }
 
 // PERSISTÊNCIA COMPLETA DE SESSÃO ATIVA (MECANISMO ANTI-REFRESH)
 function checkActiveSessionOnLoad() {
-    const cachedSession = localStorage.getItem('gamelist_session_v3');
+    const cachedSession = localStorage.getItem('gamelist_session_v4');
     if (!cachedSession) {
         showScreen('auth-screen');
         return;
@@ -331,7 +332,7 @@ function processClearLogout() {
     selectedGames = [];
     catalogGames = [];
     
-    localStorage.removeItem('gamelist_session_v3');
+    localStorage.removeItem('gamelist_session_v4');
     formUserLogin.reset();
     formUserRegister.reset();
     formAdmin.reset();
@@ -774,7 +775,7 @@ document.getElementById('form-update-master').addEventListener('submit', (e) => 
     }
 });
 
-// Coleta e pooling de Pedidos Globais com Botão de Deleção pelo Administrador
+// Coleta e pooling de Pedidos Globais com Recursos de Visualização, Download e Purga
 function loadGlobalOrdersForAdmin() {
     if (!isFirebaseConnected) return;
     onValue(ref(database, 'orders'), (snapshot) => {
@@ -786,6 +787,8 @@ function loadGlobalOrdersForAdmin() {
                 const order = data[key];
                 const box = document.createElement('div');
                 box.classList.add('order-box');
+                
+                // Monta estrutura organizada com botões adicionais (Ver lista e Baixar lista)
                 box.innerHTML = `
                     <div class="order-box-header">
                         <div class="order-box-details">
@@ -794,13 +797,45 @@ function loadGlobalOrdersForAdmin() {
                             <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
                             <p><strong>Hardware:</strong> Pendrive de ${order.driveSize}GB</p>
                         </div>
-                        <button type="button" class="btn-danger-action btn-purge-order" data-orderid="${key}">Excluir Registro de Pedido</button>
+                        <div class="admin-order-actions">
+                            <button type="button" class="btn-info-action btn-view-order-list" data-img="${order.imageB64}">Ver lista</button>
+                            <button type="button" class="btn-success-action btn-download-order-list" data-username="${order.client.username}" data-img="${order.imageB64}">Baixar lista</button>
+                            <button type="button" class="btn-danger-action btn-purge-order" data-orderid="${key}">Excluir Registro de Pedido</button>
+                        </div>
                     </div>
                     <img src="${order.imageB64}" alt="Print do Pedido">
                 `;
                 container.appendChild(box);
             });
 
+            // Evento: Ver lista (Abre em outra aba)
+            container.querySelectorAll('.btn-view-order-list').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const base64Data = e.currentTarget.dataset.img;
+                    const novaAba = window.open();
+                    if(novaAba) {
+                        novaAba.document.write(`<title>Visualizar Lista</title><body style="margin:0; background:#050507; display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${base64Data}" style="max-width:100%; height:auto; border:2px solid #202028; border-radius:8px;"></body>`);
+                    } else {
+                        alert("O bloqueador de pop-ups impediu a abertura da nova aba.");
+                    }
+                });
+            });
+
+            // Evento: Baixar lista (Força download JPG)
+            container.querySelectorAll('.btn-download-order-list').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const base64Data = e.currentTarget.dataset.img;
+                    const clientUser = e.currentTarget.dataset.username;
+                    const linkDownload = document.createElement('a');
+                    linkDownload.href = base64Data;
+                    linkDownload.download = `lista_${clientUser}_${Date.now()}.jpg`;
+                    document.body.appendChild(linkDownload);
+                    linkDownload.click();
+                    document.body.removeChild(linkDownload);
+                });
+            });
+
+            // Evento: Excluir Registro
             container.querySelectorAll('.btn-purge-order').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const idDoPedido = e.currentTarget.dataset.orderid;
@@ -820,6 +855,7 @@ function loadGlobalOrdersForAdmin() {
 window.addEventListener('DOMContentLoaded', () => {
     checkActiveSessionOnLoad();
     
+    // Pooling de sincronização em tempo real caso o painel admin esteja visível
     setInterval(() => {
         const adminPanel = document.getElementById('admin-screen');
         if (adminPanel && adminPanel.classList.contains('active')) {
