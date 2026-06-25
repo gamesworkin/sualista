@@ -77,7 +77,7 @@ function showScreen(screenId) {
     }
 }
 
-// Váriáveis de Estado da Sessão e Aplicação
+// Variáveis de Estado da Sessão e Aplicação
 let currentUserData = null;
 let currentDrive = { size: 0, limit: 0 };
 let catalogGames = [];
@@ -150,7 +150,7 @@ if (formUserRegister) {
         e.preventDefault();
         const username = document.getElementById('cadastro-username').value.trim().toLowerCase();
         const name = document.getElementById('cadastro-nome').value.trim();
-        const lastname = document.getElementById('cadastro-textbox-sobrenome') ? document.getElementById('cadastro-textbox-sobrenome').value.trim() : document.getElementById('cadastro-sobrenome').value.trim();
+        const lastname = document.getElementById('cadastro-sobrenome').value.trim();
         const whatsapp = document.getElementById('cadastro-whatsapp').value.trim();
         const city = document.getElementById('cadastro-cidade').value.trim();
         const masterPass = document.getElementById('cadastro-senha-master').value;
@@ -291,6 +291,7 @@ if (formAdmin) {
                 .catch(err => {
                     alert("Acesso Negado Administrativo! Verifique suas credenciais.");
                     resetButtonState(btnSubmitAdmin, "Acessar Painel Master");
+                    console.error(err);
                 });
         } else {
             if (email === "admin@teste.com" && pass === "123456") {
@@ -437,6 +438,7 @@ function renderCatalogUI() {
     }
 }
 
+// Manipulação e cálculo dinâmico das seleções
 function handleGameSelection(e) {
     const gameId = e.target.dataset.id;
     const game = catalogGames.find(g => g.id === gameId);
@@ -862,7 +864,7 @@ function loadGlobalOrdersForAdmin() {
                 container.appendChild(box);
             });
 
-            // AÇÃO ADICIONADA: Ver lista (Abre a captura limpa em outra aba do navegador)
+            // Ver lista (Abre a captura limpa em outra aba do navegador)
             container.querySelectorAll('.btn-view-order-list').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const base64Data = e.currentTarget.dataset.img;
@@ -875,7 +877,7 @@ function loadGlobalOrdersForAdmin() {
                 });
             });
 
-            // AÇÃO ADICIONADA: Baixar lista (Força o download direto em arquivo .jpg)
+            // Baixar lista (Força o download direto em arquivo .jpg)
             container.querySelectorAll('.btn-download-order-list').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const base64Data = e.currentTarget.dataset.img;
@@ -889,7 +891,7 @@ function loadGlobalOrdersForAdmin() {
                 });
             });
 
-            // Ação Admin: Expurgar registro da fila
+            // Remover Pedido da Fila
             container.querySelectorAll('.btn-purge-order').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const idDoPedido = e.currentTarget.dataset.orderid;
