@@ -131,17 +131,32 @@
         </header>
         
         <div class="admin-grid">
-            <div class="admin-card">
-                <h3>Cadastrar Novo Jogo</h3>
-                <form id="form-add-game">
-                    <div class="input-group">
-                        <input type="text" id="game-title" placeholder="Nome do Jogo" required>
-                    </div>
-                    <div class="input-group">
-                        <input type="number" step="0.01" id="game-size" placeholder="Tamanho em GB (ex: 4.3)" required>
-                    </div>
-                    <button type="submit" class="btn-neon admin-color">Adicionar ao Catálogo</button>
-                </form>
+            <div class="admin-col-left">
+                <div class="admin-card">
+                    <h3>Cadastrar Novo Jogo</h3>
+                    <form id="form-add-game">
+                        <div class="input-group">
+                            <input type="text" id="game-title" placeholder="Nome do Jogo" required>
+                        </div>
+                        <div class="input-group">
+                            <input type="number" step="0.01" id="game-size" placeholder="Tamanho em GB (ex: 4.3)" required>
+                        </div>
+                        <button type="submit" class="btn-neon admin-color">Adicionar ao Catálogo</button>
+                    </form>
+                </div>
+
+                <div class="admin-card space-top">
+                    <h3>Senha Master do Cliente</h3>
+                    <p style="font-size:14px; color:var(--text-muted); margin-bottom:10px;">
+                        Defina a senha global que os clientes usarão para acessar o catálogo.
+                    </p>
+                    <form id="form-update-master">
+                        <div class="input-group">
+                            <input type="text" id="admin-master-input" placeholder="Nova Senha Master" required>
+                        </div>
+                        <button type="submit" id="btn-update-master" class="btn-neon admin-color">Atualizar Senha</button>
+                    </form>
+                </div>
             </div>
 
             <div class="admin-card wide">
