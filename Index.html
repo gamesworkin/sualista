@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameList Pro - Montador de Pendrives</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <div id="auth-screen" class="screen active">
+        <div class="auth-container">
+            <h1 class="glitch-text">GAMELIST <span>PRO</span></h1>
+            
+            <div class="tabs">
+                <button id="tab-user" class="tab-btn active">Acesso Cliente</button>
+                <button id="tab-admin" class="tab-btn">Painel Admin</button>
+            </div>
+
+            <form id="form-user" class="auth-form active">
+                <div class="input-group">
+                    <input type="password" id="master-password" placeholder="Senha Master" required>
+                </div>
+                <div class="input-group row">
+                    <input type="text" id="user-name" placeholder="Nome" required>
+                    <input type="text" id="user-lastname" placeholder="Sobrenome" required>
+                </div>
+                <div class="input-group">
+                    <input type="tel" id="user-whatsapp" placeholder="WhatsApp (com DDD)" required>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="user-city" placeholder="Cidade" required>
+                </div>
+                <button type="submit" class="btn-neon">Entrar no Sistema</button>
+            </form>
+
+            <form id="form-admin" class="auth-form">
+                <div class="input-group">
+                    <input type="email" id="admin-email" placeholder="E-mail Admin" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="admin-password" placeholder="Senha" required>
+                </div>
+                <button type="submit" class="btn-neon admin-color">Acessar Painel</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="drive-selection-screen" class="screen">
+        <div class="central-container">
+            <h2>Selecione o Tamanho do seu Pendrive</h2>
+            <p>Cada tamanho possui um limite real de armazenamento calculado pelo sistema.</p>
+            <div class="drive-options">
+                <button class="drive-card" data-size="32" data-limit="28.7">
+                    <span class="drive-icon">💾</span>
+                    <h3>32 GB</h3>
+                    <small>Espaço Real: 28,7 GB</small>
+                </button>
+                <button class="drive-card" data-size="64" data-limit="58.7">
+                    <span class="drive-icon">💾</span>
+                    <h3>64 GB</h3>
+                    <small>Espaço Real: 58,7 GB</small>
+                </button>
+                <button class="drive-card" data-size="128" data-limit="115.5">
+                    <span class="drive-icon">💾</span>
+                    <h3>128 GB</h3>
+                    <small>Espaço Real: 115,5 GB</small>
+                </button>
+            </div>
+            <button id="logout-btn" class="btn-secundario">Sair</button>
+        </div>
+    </div>
+
+    <div id="main-app-screen" class="screen">
+        <header class="app-header">
+            <div class="logo">GAMELIST <span>PRO</span></div>
+            <div id="user-welcome" class="user-badge"></div>
+        </header>
+
+        <div class="app-grid">
+            <div class="left-panel">
+                <div class="storage-box">
+                    <div class="vector-drive">
+                        <svg viewBox="0 0 24 24" class="svg-drive">
+                            <path d="M6 2h12v4H6V2zm0 4h12v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6zm3 3v2h2V9H9zm4 0v2h2V9h-2z"/>
+                        </svg>
+                        <div>
+                            <h3 id="display-drive-name">Pendrive GB</h3>
+                            <span id="storage-text">0.00 / 0.00 GB</span>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                    <span id="game-counter" class="counter-text">Jogos selecionados: 0 (Mínimo 5)</span>
+                </div>
+
+                <div id="ticket-lista" class="ticket-container">
+                    <div class="ticket-header">
+                        <h4>MINHA LISTA DE JOGOS</h4>
+                        <p id="ticket-user-info"></p>
+                    </div>
+                    <ul id="selected-games-list" class="games-list-vazia">
+                        </ul>
+                </div>
+
+                <button id="btn-generate-list" class="btn-neon" disabled>Gerar Lista de Jogos</button>
+                <button id="btn-back-drives" class="btn-secundario">Mudar Pendrive</button>
+            </div>
+
+            <div class="right-panel">
+                <h2>Catálogo de Jogos Disponíveis</h2>
+                <div id="catalog-list" class="catalog-grid">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-screen" class="screen">
+        <header class="app-header admin-border">
+            <div class="logo">GAMELIST <span>ADMIN</span></div>
+            <button id="admin-logout-btn" class="btn-secundario">Sair do Painel</button>
+        </header>
+        
+        <div class="admin-grid">
+            <div class="admin-card">
+                <h3>Cadastrar Novo Jogo</h3>
+                <form id="form-add-game">
+                    <div class="input-group">
+                        <input type="text" id="game-title" placeholder="Nome do Jogo" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="number" step="0.01" id="game-size" placeholder="Tamanho em GB (ex: 4.3)" required>
+                    </div>
+                    <button type="submit" class="btn-neon admin-color">Adicionar ao Catálogo</button>
+                </form>
+            </div>
+
+            <div class="admin-card wide">
+                <h3>Pedidos Recebidos (Listas em JPEG/Base64)</h3>
+                <div id="orders-container" class="orders-list">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
