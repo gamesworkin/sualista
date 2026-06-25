@@ -1,6 +1,6 @@
 // IMPORTAÇÃO DOS MÓDULOS WEB DO FIREBASE (CDN)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
@@ -70,8 +70,13 @@ formUser.addEventListener('submit', (e) => {
         role: 'user'
     };
 
-    // Usando email fictício baseado na senha master para autenticar via Firebase Auth
-    // Dica: Cadastre no Firebase Auth o e-mail 'master@gamelist.com' com sua senha master.
+    // Injeta os dados cadastrados diretamente nos elementos internos do Ticket
+    document.getElementById('tk-nome').innerText = currentUserData.name;
+    document.getElementById('tk-sobrenome').innerText = currentUserData.lastname;
+    document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
+    document.getElementById('tk-cidade').innerText = currentUserData.city;
+
+    // Autentica via Firebase Auth com e-mail padrão do sistema
     signInWithEmailAndPassword(auth, "master@gamelist.com", masterPass)
         .then(() => {
             showScreen('drive-selection-screen');
@@ -116,9 +121,9 @@ document.querySelectorAll('.drive-card').forEach(card => {
         currentDrive.size = card.dataset.size;
         currentDrive.limit = parseFloat(card.dataset.limit);
         
-        // Atualiza textos na tela principal
+        // Atualiza textos na tela principal e injeta o tamanho no Ticket (JPEG)
         document.getElementById('display-drive-name').innerText = `Pendrive ${currentDrive.size}GB`;
-        document.getElementById('ticket-user-info').innerText = `Cliente: ${currentUserData.name} | WhatsApp: ${currentUserData.whatsapp}\nDestino: ${currentUserData.city} | Pendrive: ${currentDrive.size}GB`;
+        document.getElementById('tk-pendrive').innerText = `${currentDrive.size} GB (Real: ${currentDrive.limit} GB)`;
         
         // Reseta seleção anterior
         selectedGames = [];
@@ -189,7 +194,6 @@ function handleGameSelection(e) {
 
 // Atualização em Tempo Real da Barra de Armazenamento e Ativação do Botão
 function updateStorageMeter() {
-    // Soma total dos tamanhos dos jogos selecionados
     const totalSize = selectedGames.reduce((acc, game) => acc + parseFloat(game.size), 0);
     const limit = currentDrive.limit;
     
@@ -204,7 +208,7 @@ function updateStorageMeter() {
 
     const btnGenerate = document.getElementById('btn-generate-list');
 
-    // Validação de Regras de Negócio: estourou tamanho OU menos de 5 jogos bloqueia o botão
+    // Validação de Regras de Negócio
     if (totalSize > limit) {
         progressBar.classList.add('exceeded');
         btnGenerate.disabled = true;
@@ -243,7 +247,7 @@ function renderTicketList() {
 document.getElementById('btn-generate-list').addEventListener('click', () => {
     const ticketElement = document.getElementById('ticket-lista');
     
-    // Captura o HTML da lista limpa e gera uma imagem digitalizada em JPEG
+    // Captura o HTML da lista contendo as info capturadas e gera o JPEG limpo
     html2canvas(ticketElement, { backgroundColor: "#ffffff" }).then(canvas => {
         const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
