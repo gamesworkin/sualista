@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI 
+// COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
 const firebaseConfig = {
     apiKey: "SUA_API_KEY",
     authDomain: "SEU_AUTH_DOMAIN",
@@ -26,18 +26,26 @@ let catalogGames = [];
 let selectedGames = [];
 
 // ==========================================
-// CONTROLE DE TELAS E ABAS (LOGIN)
+// CONTROLE DE TELAS E ABAS CORRIGIDO (LOGIN)
 // ==========================================
 const tabUser = document.getElementById('tab-user');
 const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
 const formAdmin = document.getElementById('form-admin');
 
+// Inputs dos dois formulários para controle dinâmico de validação
+const userInputs = formUser.querySelectorAll('input');
+const adminInputs = formAdmin.querySelectorAll('input');
+
 tabUser.addEventListener('click', () => {
     tabUser.classList.add('active');
     tabAdmin.classList.remove('active');
     formUser.classList.add('active');
     formAdmin.classList.remove('active');
+    
+    // Ativa obrigatoriedade do cliente e limpa admin
+    userInputs.forEach(input => input.setAttribute('required', 'true'));
+    adminInputs.forEach(input => input.removeAttribute('required'));
 });
 
 tabAdmin.addEventListener('click', () => {
@@ -45,6 +53,10 @@ tabAdmin.addEventListener('click', () => {
     tabUser.classList.remove('active');
     formAdmin.classList.add('active');
     formUser.classList.remove('active');
+    
+    // Ativa obrigatoriedade do admin e limpa cliente para não quebrar o clique
+    adminInputs.forEach(input => input.setAttribute('required', 'true'));
+    userInputs.forEach(input => input.removeAttribute('required'));
 });
 
 function showScreen(screenId) {
@@ -98,7 +110,7 @@ formAdmin.addEventListener('submit', (e) => {
             showScreen('admin-screen');
         })
         .catch(err => {
-            alert("Acesso Administrativo Negado!");
+            alert("Acesso Administrativo Negado! Verifique email e senha.");
         });
 });
 
