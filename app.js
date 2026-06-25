@@ -5,16 +5,16 @@ import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstati
 
 // COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
 const firebaseConfig = {
-    apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
-    authDomain: "sua-lista-e6ef3.firebaseapp.com",
-    databaseURL: "https://sua-lista-e6ef3-default-rtdb.firebaseio.com/",
-    projectId: "sua-lista-e6ef3",
-    storageBucket: "sua-lista-e6ef3.firebasestorage.app",
-    messagingSenderId: "689656568290",
-    appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_AUTH_DOMAIN",
+    databaseURL: "SUA_DATABASE_URL",
+    projectId: "SEU_PROJECT_ID",
+    storageBucket: "SEU_STORAGE_BUCKET",
+    messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+    appId: "SEU_APP_ID"
 };
 
-// Inicializações do Firebase
+// Inicializações de Fluxo do Firebase
 let app, auth, database;
 let isFirebaseConnected = false;
 
@@ -24,36 +24,15 @@ try {
         auth = getAuth(app);
         database = getDatabase(app);
         isFirebaseConnected = true;
-        console.log("🔥 Firebase inicializado com sucesso.");
+        console.log("🔥 Firebase conectado e ativo globalmente.");
     } else {
-        console.warn("⚠️ Firebase não configurado. Rodando em modo de simulação local.");
+        console.warn("⚠️ Utilizando estrutura de simulação LocalStorage/Mock.");
     }
 } catch (error) {
-    console.error("Erro ao tentar ler o Firebase:", error);
+    console.error("Erro Crítico de Inicialização do Firebase:", error);
 }
 
-// Senha Master de Segurança
-let systemMasterPassword = "admin"; 
-
-if (isFirebaseConnected) {
-    const masterPasswordRef = ref(database, 'settings/masterPassword');
-    onValue(masterPasswordRef, (snapshot) => {
-        const val = snapshot.val();
-        if (val) {
-            systemMasterPassword = val;
-            const adminMasterInput = document.getElementById('admin-master-input');
-            if(adminMasterInput) adminMasterInput.value = val;
-        }
-    });
-}
-
-// Estado da Aplicação
-let currentUserData = null;
-let currentDrive = { size: 0, limit: 0 };
-let catalogGames = [];
-let selectedGames = [];
-
-// Elementos DOM de Controle de Acesso
+// Elementos Estruturais DOM
 const tabUser = document.getElementById('tab-user');
 const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
@@ -61,7 +40,52 @@ const formAdmin = document.getElementById('form-admin');
 const btnSubmitUser = document.getElementById('btn-submit-user');
 const btnSubmitAdmin = document.getElementById('btn-submit-admin');
 
-// Troca de Abas de Login
+// Elementos de Navegação Interna do Cliente
+const btnNavMontador = document.getElementById('btn-nav-montador');
+const btnNavPedidos = document.getElementById('btn-nav-pedidos');
+const sectionMontador = document.getElementById('sub-section-montador');
+const sectionPedidos = document.getElementById('sub-section-pedidos');
+
+// Estado Dinâmico da Sessão
+let currentUserData = null;
+let currentDrive = { size: 0, limit: 0 };
+let catalogGames = [];
+let selectedGames = [];
+let loadedAdminGamesRaw = [];
+let systemMasterPassword = "admin";
+
+// SISTEMA DE NAVEGAÇÃO ENTRE ABAS DO CLIENTE LOGADO
+if(btnNavMontador && btnNavPedidos) {
+    btnNavMontador.addEventListener('click', () => {
+        btnNavMontador.classList.add('active');
+        btnNavPedidos.classList.remove('active');
+        sectionMontador.classList.add('active');
+        sectionPedidos.classList.remove('active');
+        loadCatalog();
+    });
+
+    btnNavPedidos.addEventListener('click', () => {
+        btnNavPedidos.classList.add('active');
+        btnNavMontador.classList.remove('active');
+        sectionPedidos.classList.add('active');
+        sectionMontador.classList.remove('active');
+        loadUserSpecificOrders();
+    });
+}
+
+// Sincronização em tempo real da senha master cadastrada no Admin
+if (isFirebaseConnected) {
+    onValue(ref(database, 'settings/masterPassword'), (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+            systemMasterPassword = val;
+            const inputMaster = document.getElementById('admin-master-input');
+            if(inputMaster) inputMaster.value = val;
+        }
+    });
+}
+
+// Alternância Visual de Abas na Tela de Autenticação
 tabUser.addEventListener('click', (e) => {
     e.preventDefault();
     tabUser.classList.add('active');
@@ -106,7 +130,7 @@ function resetButtonState(button, originalText) {
     button.innerText = originalText;
 }
 
-// LOGIN DO CLIENTE
+// VALIDAR E SALVAR PERSISTÊNCIA DO CLIENTE LOCALMENTE
 formUser.addEventListener('submit', (e) => {
     e.preventDefault();
     const masterPassInput = document.getElementById('master-password').value;
@@ -124,19 +148,23 @@ formUser.addEventListener('submit', (e) => {
     }
 
     currentUserData = { name, lastname, whatsapp, city, role: 'user' };
+    localStorage.setItem('gamelist_session', JSON.stringify(currentUserData));
+    
+    setupClientEnvironment();
+    resetButtonState(btnSubmitUser, "Entrar no Sistema");
+    showScreen('drive-selection-screen');
+    formUser.reset();
+});
+
+function setupClientEnvironment() {
+    document.getElementById('user-welcome').innerText = `Olá, ${currentUserData.name} ${currentUserData.lastname}`;
     document.getElementById('tk-nome').innerText = currentUserData.name;
     document.getElementById('tk-sobrenome').innerText = currentUserData.lastname;
     document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
     document.getElementById('tk-cidade').innerText = currentUserData.city;
+}
 
-    setTimeout(() => {
-        showScreen('drive-selection-screen');
-        formUser.reset();
-        resetButtonState(btnSubmitUser, "Entrar no Sistema");
-    }, 600);
-});
-
-// LOGIN DO ADMIN
+// LOGIN ADMINISTRATIVO (COM AUTENTICAÇÃO PERSISTENTE FIREBASE)
 formAdmin.addEventListener('submit', (e) => {
     e.preventDefault();
     const email = document.getElementById('admin-email').value;
@@ -146,29 +174,64 @@ formAdmin.addEventListener('submit', (e) => {
 
     if (isFirebaseConnected) {
         signInWithEmailAndPassword(auth, email, pass)
-            .then(() => {
-                currentUserData = { role: 'admin' };
-                showScreen('admin-screen');
-                formAdmin.reset();
-                resetButtonState(btnSubmitAdmin, "Acessar Painel");
-                syncCatalogToAdminPanel();
+            .then((userCredential) => {
+                currentUserData = { email: userCredential.user.email, role: 'admin' };
+                localStorage.setItem('gamelist_session', JSON.stringify(currentUserData));
+                executeAdminLoginFlow();
             })
             .catch(err => {
-                alert("Acesso Administrativo Negado!");
+                alert("Acesso Administrativo Recusado! Verifique e-mail e senha.");
                 resetButtonState(btnSubmitAdmin, "Acessar Painel");
             });
     } else {
-        setTimeout(() => {
-            alert("[MODO TESTE LOCAL]: Painel Admin aberto.");
-            currentUserData = { role: 'admin' };
-            showScreen('admin-screen');
+        if(email === "admin@teste.com" && pass === "123456") {
+            currentUserData = { email, role: 'admin' };
+            localStorage.setItem('gamelist_session', JSON.stringify(currentUserData));
+            executeAdminLoginFlow();
+        } else {
+            alert("[MOCK]: Use admin@teste.com e 123456");
             resetButtonState(btnSubmitAdmin, "Acessar Painel");
-            syncCatalogToAdminPanel();
-        }, 600);
+        }
     }
 });
 
-// LOGOUT INTEGRAL
+function executeAdminLoginFlow() {
+    showScreen('admin-screen');
+    formAdmin.reset();
+    resetButtonState(btnSubmitAdmin, "Acessar Painel");
+    syncCatalogToAdminPanel();
+}
+
+// ENGENHARIA DE VERIFICAÇÃO DE SESSÃO ATIVA (ANTI-REFRESH 'F5')
+function checkActiveSessionOnLoad() {
+    const cachedSession = localStorage.getItem('gamelist_session');
+    if (!cachedSession) {
+        showScreen('auth-screen');
+        return;
+    }
+
+    currentUserData = JSON.parse(cachedSession);
+
+    if (currentUserData.role === 'admin') {
+        if (isFirebaseConnected) {
+            // Garante o re-vínculo seguro com o Auth do Firebase
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    executeAdminLoginFlow();
+                } else {
+                    processClearLogout();
+                }
+            });
+        } else {
+            executeAdminLoginFlow();
+        }
+    } else if (currentUserData.role === 'user') {
+        setupClientEnvironment();
+        showScreen('drive-selection-screen');
+    }
+}
+
+// LOGOUT COMPLETO DO SISTEMA
 function processClearLogout() {
     if (isFirebaseConnected) signOut(auth);
     currentUserData = null;
@@ -176,20 +239,28 @@ function processClearLogout() {
     selectedGames = [];
     catalogGames = [];
     
-    localStorage.clear();
-    sessionStorage.clear();
+    localStorage.removeItem('gamelist_session');
     formUser.reset();
     formAdmin.reset();
     
     resetButtonState(btnSubmitUser, "Entrar no Sistema");
     resetButtonState(btnSubmitAdmin, "Acessar Painel");
+    
+    if(btnNavMontador) {
+        btnNavMontador.classList.add('active');
+        btnNavPedidos.classList.remove('active');
+        sectionMontador.classList.add('active');
+        sectionPedidos.classList.remove('active');
+    }
+    
     showScreen('auth-screen');
 }
 
 document.getElementById('logout-btn').addEventListener('click', processClearLogout);
+document.getElementById('app-logout-btn').addEventListener('click', processClearLogout);
 document.getElementById('admin-logout-btn').addEventListener('click', processClearLogout);
 
-// SELEÇÃO DO PENDRIVE
+// SELEÇÃO DO TAMANHO DE PENDRIVE
 document.querySelectorAll('.drive-card').forEach(card => {
     card.addEventListener('click', () => {
         currentDrive.size = card.dataset.size;
@@ -205,19 +276,20 @@ document.querySelectorAll('.drive-card').forEach(card => {
 });
 document.getElementById('btn-back-drives').addEventListener('click', () => { showScreen('drive-selection-screen'); });
 
-// LER E RENDERIZAR CATALOGO (CLIENTE)
+// FLUXO DO ACERVO DE JOGOS DO CLIENTE
 function loadCatalog() {
     if (!isFirebaseConnected) {
         catalogGames = [
-            { id: "1", title: "GTA San Andreas", size: "4.3" },
-            { id: "2", title: "Resident Evil 4", size: "3.5" },
-            { id: "3", title: "God of War II", size: "7.9" }
+            { id: "1", title: "GTA San Andreas Ultra", size: "4.3" },
+            { id: "2", title: "Resident Evil 4 Remake", size: "3.5" },
+            { id: "3", title: "God of War II Nostalgia", size: "7.9" },
+            { id: "4", title: "Need For Speed Underground 2", size: "2.1" },
+            { id: "5", title: "Crash Bandicoot Trilogy", size: "3.2" }
         ];
         renderCatalogUI();
         return;
     }
-    const catalogRef = ref(database, 'catalog');
-    onValue(catalogRef, (snapshot) => {
+    onValue(ref(database, 'catalog'), (snapshot) => {
         const data = snapshot.val();
         catalogGames = [];
         if(data) {
@@ -234,23 +306,30 @@ function renderCatalogUI() {
         catalogGames.forEach(game => {
             const item = document.createElement('div');
             item.classList.add('catalog-item');
+            
+            // Verifica se o jogo ja estava marcado anteriormente para manter consistencia visual
+            const isChecked = selectedGames.some(g => g.id === game.id) ? 'checked' : '';
+            
             item.innerHTML = `
                 <div class="game-info"><h4>${game.title}</h4><span>${game.size} GB</span></div>
-                <input type="checkbox" class="chk-gamer" data-id="${game.id}" value="${game.size}">
+                <input type="checkbox" class="chk-gamer" data-id="${game.id}" value="${game.size}" ${isChecked}>
             `;
             catalogContainer.appendChild(item);
         });
         document.querySelectorAll('.chk-gamer').forEach(chk => { chk.addEventListener('change', handleGameSelection); });
     } else {
-        catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo no catálogo.</p>';
+        catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo disponível no catálogo.</p>';
     }
 }
 
 function handleGameSelection(e) {
     const gameId = e.target.dataset.id;
     const game = catalogGames.find(g => g.id === gameId);
-    if (e.target.checked) selectedGames.push(game);
-    else selectedGames = selectedGames.filter(g => g.id !== gameId);
+    if (e.target.checked) {
+        if(!selectedGames.some(g => g.id === gameId)) selectedGames.push(game);
+    } else {
+        selectedGames = selectedGames.filter(g => g.id !== gameId);
+    }
     updateStorageMeter();
     renderTicketList();
 }
@@ -286,40 +365,142 @@ function renderTicketList() {
     });
 }
 
-// SALVAR PEDIDO CLIENTE
+// SALVAR NOVO PEDIDO DO CLIENTE (GERANDO A FICHA IMPRESSA EM BASE64)
 document.getElementById('btn-generate-list').addEventListener('click', () => {
     const ticketElement = document.getElementById('ticket-lista');
     html2canvas(ticketElement, { backgroundColor: "#ffffff" }).then(canvas => {
         const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+        
+        const orderPayload = {
+            client: currentUserData, // Vincula de forma unica pelo nome/whatsapp corporativo
+            driveSize: currentDrive.size,
+            imageB64: base64Image,
+            timestamp: Date.now()
+        };
+
         if (isFirebaseConnected) {
-            push(ref(database, 'orders'), { client: currentUserData, driveSize: currentDrive.size, imageB64: base64Image, timestamp: Date.now() })
-                .then(() => { alert("🎮 Pedido enviado com sucesso!"); processClearLogout(); });
+            push(ref(database, 'orders'), orderPayload)
+                .then(() => { 
+                    alert("🎮 Seu pedido foi computado e enviado com sucesso!"); 
+                    selectedGames = [];
+                    renderTicketList();
+                    updateStorageMeter();
+                    // Redireciona de forma automatica para a aba de pedidos dele
+                    btnNavPedidos.click();
+                });
         } else {
-            alert("[MOCK]: Pedido simulado.");
-            processClearLogout();
+            // Logica Simulada de Backup Local
+            let localOrders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
+            orderPayload.id = "MOCK_" + Date.now();
+            localOrders.push(orderPayload);
+            localStorage.setItem('mock_orders', JSON.stringify(localOrders));
+            
+            alert("[MODO TESTE]: Pedido gravado com sucesso no Cache Local.");
+            selectedGames = [];
+            btnNavPedidos.click();
         }
     });
 });
 
 // ========================================================
-// 🛠️ ÁREA EXCLUSIVA DE ENGENHARIA DE DADOS DO ADMIN
+// 📦 EXCLUSIVO: COMPARTIMENTO DE PRODUTOS E PEDIDOS DO CLIENTE
 // ========================================================
+function loadUserSpecificOrders() {
+    const container = document.getElementById('client-orders-history-list');
+    container.innerHTML = '<p style="color: var(--text-muted)">Buscando seu histórico no servidor...</p>';
 
-// Variavel temporaria para manter os jogos carregados para fins de exportacao estruturada
-let loadedAdminGamesRaw = [];
+    if (!isFirebaseConnected) {
+        let localOrders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
+        // Filtra apenas pedidos correspondentes ao usuario atual logado no navegador
+        let filtered = localOrders.filter(o => o.client.whatsapp === currentUserData.whatsapp);
+        renderUserOrdersUI(filtered);
+        return;
+    }
 
-// Sincronização da lista de gerenciamento (Exclusão Individual)
+    onValue(ref(database, 'orders'), (snapshot) => {
+        const data = snapshot.val();
+        let myOrdersArray = [];
+        if (data) {
+            Object.keys(data).forEach(key => {
+                if (data[key].client && data[key].client.whatsapp === currentUserData.whatsapp) {
+                    myOrdersArray.push({ id: key, ...data[key] });
+                }
+            });
+        }
+        renderUserOrdersUI(myOrdersArray);
+    });
+}
+
+function renderUserOrdersUI(orders) {
+    const container = document.getElementById('client-orders-history-list');
+    container.innerHTML = '';
+
+    if (orders.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted)">Você ainda não enviou nenhum pedido. Monte seu primeiro pendrive agora!</p>';
+        return;
+    }
+
+    // Ordena do mais recente para o mais antigo
+    orders.sort((a,b) => b.timestamp - a.timestamp);
+
+    orders.forEach(order => {
+        const dateFormatted = new Date(order.timestamp).toLocaleString('pt-BR');
+        const card = document.createElement('div');
+        card.classList.add('client-order-card');
+        
+        card.innerHTML = `
+            <div class="client-order-header">
+                <div>
+                    <h4>Pendrive Solicitado: ${order.driveSize} GB</h4>
+                    <span style="color: var(--neon-green)">Data: ${dateFormatted}</span>
+                </div>
+                <span>ID: ${order.id}</span>
+            </div>
+            <div class="client-order-body">
+                <img src="${order.imageB64}" alt="Espelho do Pedido">
+                <div class="client-order-actions">
+                    <button type="button" class="btn-danger-action btn-delete-my-order" data-id="${order.id}">Cancelar Pedido</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // Evento de exclusão e cancelamento de pedidos por iniciativa do cliente
+    container.querySelectorAll('.btn-delete-my-order').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const orderId = e.target.dataset.id;
+            if (confirm("Tem certeza absoluta de que deseja excluir e cancelar este pedido do sistema? Esta ação removerá o registro permanente.")) {
+                if (isFirebaseConnected) {
+                    remove(ref(database, `orders/${orderId}`))
+                        .then(() => alert("Pedido cancelado e apagado do banco de dados!"));
+                } else {
+                    let localOrders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
+                    localOrders = localOrders.filter(o => o.id !== orderId);
+                    localStorage.setItem('mock_orders', JSON.stringify(localOrders));
+                    alert("[MOCK]: Pedido removido do cache.");
+                    loadUserSpecificOrders();
+                }
+            }
+        });
+    });
+}
+
+
+// ========================================================
+// 🛠️ PAINEL DA ENGENHARIA DE CONTROLE DO ADMIN
+// ========================================================
 function syncCatalogToAdminPanel() {
     if (!isFirebaseConnected) {
         loadedAdminGamesRaw = [
-            { title: "GTA San Andreas", size: 4.3 },
-            { title: "Resident Evil 4", size: 3.5 },
-            { title: "God of War II", size: 7.9 }
+            { title: "GTA San Andreas Ultra", size: 4.3 },
+            { title: "Resident Evil 4 Remake", size: 3.5 },
+            { title: "God of War II Nostalgia", size: 7.9 }
         ];
         renderAdminManageUI([
-            { id: "1", title: "GTA San Andreas", size: "4.3" },
-            { id: "2", title: "Resident Evil 4", size: "3.5" },
-            { id: "3", title: "God of War II", size: "7.9" }
+            { id: "1", title: "GTA San Andreas Ultra", size: "4.3" },
+            { id: "2", title: "Resident Evil 4 Remake", size: "3.5" },
+            { id: "3", title: "God of War II Nostalgia", size: "7.9" }
         ]);
         return;
     }
@@ -330,7 +511,6 @@ function syncCatalogToAdminPanel() {
         if (data) {
             Object.keys(data).forEach(key => { 
                 gamesArray.push({ id: key, ...data[key] });
-                // Limpa as chaves unicas geradas pelo Firebase para deixar o JSON limpo e portavel na exportacao
                 loadedAdminGamesRaw.push({ title: data[key].title, size: parseFloat(data[key].size) });
             });
         }
@@ -344,7 +524,7 @@ function renderAdminManageUI(games) {
     container.innerHTML = '';
 
     if (games.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Catálogo vazio.</p>';
+        container.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Catálogo sem itens ativos.</p>';
         return;
     }
 
@@ -361,20 +541,19 @@ function renderAdminManageUI(games) {
     container.querySelectorAll('.btn-delete-game').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const gameId = e.target.dataset.id;
-            if (confirm("Deseja realmente remover este jogo do catálogo?")) {
+            if (confirm("Remover este título definitivamente do catálogo público?")) {
                 if (isFirebaseConnected) {
                     remove(ref(database, `catalog/${gameId}`))
-                        .then(() => alert("Jogo removido!"))
-                        .catch(err => alert("Erro ao deletar: " + err.message));
+                        .then(() => alert("Título excluído com sucesso do ecossistema."));
                 } else {
-                    alert("[MOCK]: Jogo excluído localmente.");
+                    alert("[MOCK]: Removido do ambiente local temporário.");
                 }
             }
         });
     });
 }
 
-// Cadastrar Jogo Individual
+// Inserir Título Individual
 document.getElementById('form-add-game').addEventListener('submit', (e) => {
     e.preventDefault();
     const title = document.getElementById('game-title').value;
@@ -382,28 +561,28 @@ document.getElementById('form-add-game').addEventListener('submit', (e) => {
 
     if (isFirebaseConnected) {
         push(ref(database, 'catalog'), { title: title, size: parseFloat(size).toFixed(1) }).then(() => {
-            alert("Jogo cadastrado!");
+            alert("Jogo adicionado!");
             document.getElementById('form-add-game').reset();
         });
     } else {
-        alert("Jogo cadastrado localmente!");
+        alert("Inserido com sucesso no simulador.");
         document.getElementById('form-add-game').reset();
     }
 });
 
-// Importação de Jogos em Lote (JSON)
+// Importador Estruturado JSON em Lote
 document.getElementById('btn-import-json').addEventListener('click', (e) => {
     const rawJson = document.getElementById('json-import-textarea').value.trim();
     const btn = e.target;
 
-    if (!rawJson) { alert("Cole um código JSON válido antes de prosseguir!"); return; }
+    if (!rawJson) { alert("Cole a cadeia de caracteres do JSON válido antes de processar!"); return; }
 
     try {
         const gamesList = JSON.parse(rawJson);
-        if (!Array.isArray(gamesList)) { alert("O formato do JSON precisa ser um Array: [ { ... }, { ... } ]"); return; }
+        if (!Array.isArray(gamesList)) { alert("O formato precisa obrigatoriamente ser uma Matriz/Array: [ { ... } ]"); return; }
 
-        if (confirm(`Deseja importar todos os ${gamesList.length} jogos para o banco?`)) {
-            setGenericButtonFeedback(btn, "IMPORTANDO...");
+        if (confirm(`Validado! Confirmar a injeção em lote de ${gamesList.length} registros no banco?`)) {
+            setGenericButtonFeedback(btn, "PROCESSANDO INJEÇÃO...");
             
             if (isFirebaseConnected) {
                 const catalogRef = ref(database, 'catalog');
@@ -416,96 +595,86 @@ document.getElementById('btn-import-json').addEventListener('click', (e) => {
 
                 Promise.all(promises)
                     .then(() => {
-                        alert("🎉 Todos os jogos foram importados em lote com sucesso!");
+                        alert("🎉 Processamento em lote concluído com sucesso!");
                         document.getElementById('json-import-textarea').value = "";
                         resetButtonState(btn, "Importar JSON");
                     })
                     .catch(err => {
-                        alert("Erro durante a inserção: " + err.message);
+                        alert("Erro de Injeção: " + err.message);
                         resetButtonState(btn, "Importar JSON");
                     });
             } else {
                 setTimeout(() => {
-                    alert(`[MOCK]: ${gamesList.length} jogos importados com sucesso.`);
+                    alert(`[MOCK]: ${gamesList.length} itens injetados localmente.`);
                     document.getElementById('json-import-textarea').value = "";
                     resetButtonState(btn, "Importar JSON");
                 }, 800);
             }
         }
     } catch (err) {
-        alert("Erro Crítico de Sintaxe no JSON! Verifique vírgulas e aspas duplas.\nErro: " + err.message);
+        alert("Falha de Compilação do JSON! Certifique-se de usar aspas duplas padronizadas.\nErro: " + err.message);
     }
 });
 
-// ==========================================
-// 📥 ADIÇÃO: EXPORTAÇÃO COMPLETA DO CATÁLOGO (JSON)
-// ==========================================
+// Exportador Automatizado de Arquivos Físicos JSON
 document.getElementById('btn-export-json').addEventListener('click', () => {
     if (loadedAdminGamesRaw.length === 0) {
-        alert("❌ Não há jogos cadastrados no catálogo atual para realizar a exportação.");
+        alert("❌ Impossível exportar um arquivo de backup com o acervo zerado.");
         return;
     }
 
     try {
-        // Converte o array de jogos limpo em uma string JSON identada para facil leitura
         const jsonString = JSON.stringify(loadedAdminGamesRaw, null, 2);
-        
-        // Cria um elemento Blob na memoria do navegador simulando o arquivo
         const blob = new Blob([jsonString], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         
-        // Cria um link temporario para acionar o download do arquivo .json
         const downloadLink = document.createElement('a');
         downloadLink.href = url;
-        downloadLink.download = `backup_catalogo_jogos_${Date.now()}.json`;
+        downloadLink.download = `backup_games_acervo_${Date.now()}.json`;
         
         document.body.appendChild(downloadLink);
         downloadLink.click();
         
-        // Limpeza de memoria pós-download
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(url);
-        
-        alert("💾 Arquivo de backup exportado e baixado com sucesso!");
     } catch (error) {
-        alert("Erro ao tentar exportar os dados do catálogo: " + error.message);
+        alert("Falha Operacional ao Gerar Download: " + error.message);
     }
 });
 
-// Limpar Todo o Catálogo (Exclusão Completa)
+// Resetadores Totais do Banco
 document.getElementById('btn-clear-catalog').addEventListener('click', () => {
-    if (confirm("⚠️ ATENÇÃO CRÍTICA!\nVocê tem certeza que deseja APAGAR TODO o catálogo de jogos? Esta ação é irreversível!")) {
+    if (confirm("🚨 ALERTA GERAL DE SEGURANÇA!\nDeseja verdadeiramente ELIMINAR COMPLETAMENTE todo o catálogo público? Essa operação destruirá os dados sem chance de retorno!")) {
         if (isFirebaseConnected) {
             remove(ref(database, 'catalog'))
-                .then(() => alert("💥 Catálogo de jogos completamente esvaziado!"))
-                .catch(err => alert("Erro ao limpar banco: " + err.message));
+                .then(() => alert("Banco de Dados limpo."));
         } else {
-            alert("[MOCK]: Catálogo limpo.");
+            alert("[MOCK]: Acervo limpo.");
         }
     }
 });
 
-// Atualizar Senha Master
+// Atualizador de Chave Mestre
 document.getElementById('form-update-master').addEventListener('submit', (e) => {
     e.preventDefault();
     const newMaster = document.getElementById('admin-master-input').value;
     const btn = document.getElementById('btn-update-master');
     
-    setGenericButtonFeedback(btn, "ATUALIZANDO...");
+    setGenericButtonFeedback(btn, "GRAVANDO VALOR...");
     if (isFirebaseConnected) {
         set(ref(database, 'settings/masterPassword'), newMaster).then(() => {
-            alert("Senha Master alterada!");
+            alert("Senha Master redefinida no Firebase!");
             resetButtonState(btn, "Atualizar Senha");
         });
     } else {
         systemMasterPassword = newMaster;
-        alert("Senha Master simulada alterada!");
+        alert("Senha Master atualizada localmente.");
         resetButtonState(btn, "Atualizar Senha");
     }
 });
 
-// Carregar Pedidos
-function loadOrdersForAdmin() {
+// Monitor de Pedidos Globais para Administração
+function loadGlobalOrdersForAdmin() {
     if (!isFirebaseConnected) return;
     onValue(ref(database, 'orders'), (snapshot) => {
         const container = document.getElementById('orders-container');
@@ -518,20 +687,27 @@ function loadOrdersForAdmin() {
                 box.classList.add('order-box');
                 box.innerHTML = `
                     <p><strong>Cliente:</strong> ${order.client.name} ${order.client.lastname}</p>
-                    <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
-                    <p><strong>Tamanho:</strong> Pendrive de ${order.driveSize}GB</p>
-                    <img src="${order.imageB64}" alt="Pedido">
+                    <p><strong>Contato Directo:</strong> ${order.client.whatsapp} | <strong>Localidade:</strong> ${order.client.city}</p>
+                    <p><strong>Hardware Solicitado:</strong> Pendrive de ${order.driveSize}GB</p>
+                    <img src="${order.imageB64}" alt="Lista Física Enviada">
                 `;
                 container.appendChild(box);
             });
         } else {
-            container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido recebido.</p>';
+            container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido em aberto na fila global.</p>';
         }
     });
 }
 
-setInterval(() => {
-    if (document.getElementById('admin-screen').classList.contains('active')) {
-        loadOrdersForAdmin();
-    }
-}, 4000);
+// Inicializador Automático de Rotinas no Carregamento
+window.addEventListener('DOMContentLoaded', () => {
+    checkActiveSessionOnLoad();
+    
+    // Configura o pooling assíncrono para o admin se ele estiver ativo na tela
+    setInterval(() => {
+        const adminPanel = document.getElementById('admin-screen');
+        if (adminPanel && adminPanel.classList.contains('active')) {
+            loadGlobalOrdersForAdmin();
+        }
+    }, 5000);
+});
