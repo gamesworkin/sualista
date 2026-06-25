@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR"> 
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,8 +15,8 @@
             <h1 class="glitch-text">GAMELIST <span>PRO</span></h1>
             
             <div class="tabs">
-                <button id="tab-user" class="tab-btn active">Acesso Cliente</button>
-                <button id="tab-admin" class="tab-btn">Painel Admin</button>
+                <button id="tab-user" type="button" class="tab-btn active">Acesso Cliente</button>
+                <button id="tab-admin" type="button" class="tab-btn">Painel Admin</button>
             </div>
 
             <form id="form-user" class="auth-form active">
@@ -38,10 +38,10 @@
 
             <form id="form-admin" class="auth-form">
                 <div class="input-group">
-                    <input type="email" id="admin-email" placeholder="E-mail Admin" required>
+                    <input type="email" id="admin-email" placeholder="E-mail Admin">
                 </div>
                 <div class="input-group">
-                    <input type="password" id="admin-password" placeholder="Senha" required>
+                    <input type="password" id="admin-password" placeholder="Senha">
                 </div>
                 <button type="submit" class="btn-neon admin-color">Acessar Painel</button>
             </form>
@@ -127,7 +127,7 @@
     <div id="admin-screen" class="screen">
         <header class="app-header admin-border">
             <div class="logo">GAMELIST <span>ADMIN</span></div>
-            <button id="admin-logout-btn" class="btn-secundario">Sair do Painel</button>
+            <button id="admin-logout-btn" class="btn-secundario">Sair do Panel</button>
         </header>
         
         <div class="admin-grid">
