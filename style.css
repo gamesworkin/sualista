@@ -1,4 +1,4 @@
-/* Custom Properties para Fácil Alteração */ 
+/* Custom Properties para Fácil Alteração */
 :root {
     --bg-darkest: #0a0a0c;
     --bg-card: #141419;
@@ -133,6 +133,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     transition: 0.3s;
     box-shadow: 0 0 10px var(--neon-green-glow);
     text-transform: uppercase;
+    width: 100%;
 }
 
 .btn-neon:hover:not(:disabled) {
@@ -141,7 +142,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     box-shadow: 0 0 20px var(--neon-green);
 }
 
-/* Novo estado de bloqueio visual */
+/* Estado de bloqueio visual */
 .btn-neon:disabled {
     color: #555 !important;
     border-color: #2c2c35 !important;
@@ -241,7 +242,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     padding: 0 20px;
 }
 
-/* Painel Esquerdo: Controle de Espaço e Ticket */
+/* Painéis */
 .left-panel, .right-panel {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -297,7 +298,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     color: var(--text-muted);
 }
 
-/* Estilização da Imagem/Ticket a ser gerado */
+/* Estilização da Imagem/Ticket */
 .ticket-container {
     background: #ffffff;
     color: #000000;
@@ -328,14 +329,8 @@ h1, h2, h3, h4, .btn-neon, .logo {
     font-family: Arial, sans-serif;
 }
 
-.ticket-client-info p {
-    margin-bottom: 2px;
-}
-
-#selected-games-list {
-    list-style: none;
-    min-height: 150px;
-}
+.ticket-client-info p { margin-bottom: 2px; }
+#selected-games-list { list-style: none; min-height: 150px; }
 
 .ticket-item {
     display: flex;
@@ -346,7 +341,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     border-bottom: 1px solid #eee;
 }
 
-/* Painel Direito: Catálogo de Jogos */
+/* Painel Direito: Catálogo */
 .catalog-grid {
     display: flex;
     flex-direction: column;
@@ -368,15 +363,9 @@ h1, h2, h3, h4, .btn-neon, .logo {
     transition: 0.2s;
 }
 
-.catalog-item:hover {
-    border-color: #333;
-    background: #111116;
-}
-
 .game-info h4 { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: bold; }
 .game-info span { color: var(--neon-green); font-size: 14px; }
 
-/* Checkbox Gamer Customizado */
 .chk-gamer {
     appearance: none;
     width: 24px;
@@ -386,30 +375,27 @@ h1, h2, h3, h4, .btn-neon, .logo {
     cursor: pointer;
     position: relative;
 }
-
-.chk-gamer:checked {
-    border-color: var(--neon-green);
-    background: var(--neon-green-glow);
-}
-
-.chk-gamer:checked::after {
-    content: "✓";
-    position: absolute;
-    color: var(--neon-green);
-    font-weight: bold;
-    font-size: 18px;
-    top: -2px;
-    left: 4px;
-}
+.chk-gamer:checked { border-color: var(--neon-green); background: var(--neon-green-glow); }
+.chk-gamer:checked::after { content: "✓"; position: absolute; color: var(--neon-green); font-weight: bold; font-size: 18px; top: -2px; left: 4px; }
 
 /* PAINEL ADMINISTRATIVO */
 .admin-border { border-color: #00e5ff; }
 .admin-grid {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr 1.8fr;
     gap: 30px;
     max-width: 1400px;
     margin: 30px auto;
+    padding: 0 20px;
+}
+
+.admin-col-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.space-top {
+    margin-top: 25px;
 }
 
 .admin-card {
@@ -436,14 +422,10 @@ h1, h2, h3, h4, .btn-neon, .logo {
     border-radius: 6px;
 }
 
-.order-box img {
-    max-width: 100%;
-    margin-top: 10px;
-    border: 1px solid #444;
-}
+.order-box img { max-width: 100%; margin-top: 10px; border: 1px solid #444; }
 
 /* Custom Scrollbar */
-::-webkit-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-darkest); }
 ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--neon-green); }
