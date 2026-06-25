@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
 
-// Estado do Aplicativo de Usuário Atual 
+// Estado do Aplicativo de Usuário Atual
 let currentUserData = null;
 let currentDrive = { size: 0, limit: 0 };
 let catalogGames = [];
@@ -33,30 +33,39 @@ const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
 const formAdmin = document.getElementById('form-admin');
 
-// Inputs dos dois formulários para controle dinâmico de validação
-const userInputs = formUser.querySelectorAll('input');
-const adminInputs = formAdmin.querySelectorAll('input');
-
-tabUser.addEventListener('click', () => {
+// Elementos de gatilho de clique corrigidos
+tabUser.addEventListener('click', (e) => {
+    e.preventDefault();
     tabUser.classList.add('active');
     tabAdmin.classList.remove('active');
-    formUser.classList.add('active');
-    formAdmin.classList.remove('active');
     
-    // Ativa obrigatoriedade do cliente e limpa admin
-    userInputs.forEach(input => input.setAttribute('required', 'true'));
-    adminInputs.forEach(input => input.removeAttribute('required'));
+    // Altera a exibição física tirando conflitos do navegador
+    formUser.style.display = 'flex';
+    formAdmin.style.display = 'none';
+    
+    // Gerenciamento rígido de validação required
+    formUser.querySelectorAll('input').forEach(input => input.setAttribute('required', 'true'));
+    formAdmin.querySelectorAll('input').forEach(input => {
+        input.removeAttribute('required');
+        input.value = ""; // Limpa para evitar envios fantasmas
+    });
 });
 
-tabAdmin.addEventListener('click', () => {
+tabAdmin.addEventListener('click', (e) => {
+    e.preventDefault();
     tabAdmin.classList.add('active');
     tabUser.classList.remove('active');
-    formAdmin.classList.add('active');
-    formUser.classList.remove('active');
     
-    // Ativa obrigatoriedade do admin e limpa cliente para não quebrar o clique
-    adminInputs.forEach(input => input.setAttribute('required', 'true'));
-    userInputs.forEach(input => input.removeAttribute('required'));
+    // Altera a exibição física tirando conflitos do navegador
+    formAdmin.style.display = 'flex';
+    formUser.style.display = 'none';
+    
+    // Gerenciamento rígido de validação required
+    formAdmin.querySelectorAll('input').forEach(input => input.setAttribute('required', 'true'));
+    formUser.querySelectorAll('input').forEach(input => {
+        input.removeAttribute('required');
+        input.value = ""; // Limpa para evitar envios fantasmas
+    });
 });
 
 function showScreen(screenId) {
@@ -65,22 +74,25 @@ function showScreen(screenId) {
 }
 
 // ==========================================
-// FLUXO DE AUTENTICAÇÃO
+// FLUXO DE AUTENTICAÇÃO (SUBMITS MAPEADOS DIRETAMENTE)
 // ==========================================
 
-// Login do Cliente (Utiliza a Senha Master cadastrada no Auth)
-formUser.addEventListener('submit', (e) => {
+document.getElementById('btn-submit-user').addEventListener('click', (e) => {
     e.preventDefault();
-    const masterPass = document.getElementById('master-password').value;
     
-    // Captura os dados do cliente obrigatórios
-    currentUserData = {
-        name: document.getElementById('user-name').value,
-        lastname: document.getElementById('user-lastname').value,
-        whatsapp: document.getElementById('user-whatsapp').value,
-        city: document.getElementById('user-city').value,
-        role: 'user'
-    };
+    // Força a checagem nativa de validação já que removemos o comportamento nativo de quebra do form
+    const masterPass = document.getElementById('master-password').value;
+    const name = document.getElementById('user-name').value;
+    const lastname = document.getElementById('user-lastname').value;
+    const whatsapp = document.getElementById('user-whatsapp').value;
+    const city = document.getElementById('user-city').value;
+
+    if (!masterPass || !name || !lastname || !whatsapp || !city) {
+        alert("Por favor, preencha todos os campos obrigatórios do cliente!");
+        return;
+    }
+    
+    currentUserData = { name, lastname, whatsapp, city, role: 'user' };
 
     // Injeta os dados cadastrados diretamente nos elementos internos do Ticket
     document.getElementById('tk-nome').innerText = currentUserData.name;
@@ -88,26 +100,31 @@ formUser.addEventListener('submit', (e) => {
     document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
     document.getElementById('tk-cidade').innerText = currentUserData.city;
 
-    // Autentica via Firebase Auth com e-mail padrão do sistema
     signInWithEmailAndPassword(auth, "master@gamelist.com", masterPass)
         .then(() => {
             showScreen('drive-selection-screen');
+            formUser.reset();
         })
         .catch(err => {
             alert("Senha Master Inválida! Erro: " + err.message);
         });
 });
 
-// Login do Administrador (admin@admin.com)
-formAdmin.addEventListener('submit', (e) => {
+document.getElementById('btn-submit-admin').addEventListener('click', (e) => {
     e.preventDefault();
     const email = document.getElementById('admin-email').value;
     const pass = document.getElementById('admin-password').value;
+
+    if (!email || !pass) {
+        alert("Por favor, preencha o E-mail e Senha do Admin!");
+        return;
+    }
 
     signInWithEmailAndPassword(auth, email, pass)
         .then(() => {
             currentUserData = { role: 'admin' };
             showScreen('admin-screen');
+            formAdmin.reset();
         })
         .catch(err => {
             alert("Acesso Administrativo Negado! Verifique email e senha.");
@@ -259,7 +276,6 @@ function renderTicketList() {
 document.getElementById('btn-generate-list').addEventListener('click', () => {
     const ticketElement = document.getElementById('ticket-lista');
     
-    // Captura o HTML da lista contendo as info capturadas e gera o JPEG limpo
     html2canvas(ticketElement, { backgroundColor: "#ffffff" }).then(canvas => {
         const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
