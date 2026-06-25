@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, push, onValue, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
+// CONFIGURAÇÕES DO SEU PROJETO FIREBASE
 const firebaseConfig = {
     apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
     authDomain: "sua-lista-e6ef3.firebaseapp.com",
@@ -15,7 +15,9 @@ const firebaseConfig = {
 };
 
 // Inicialização das variáveis do ecossistema Firebase
-let app, auth, database;
+let app;
+let auth;
+let database;
 let isFirebaseConnected = false;
 
 try {
@@ -24,35 +26,58 @@ try {
         auth = getAuth(app);
         database = getDatabase(app);
         isFirebaseConnected = true;
-        console.log("🔥 Firebase conectado globalmente.");
+        console.log("🔥 Firebase conectado globalmente com sucesso.");
     } else {
-        console.warn("⚠️ Firebase ausente. Executando em arquitetura mock/local.");
+        console.warn("⚠️ Firebase ausente ou não configurado. Executando em modo local simulado (Mock).");
     }
 } catch (error) {
-    console.error("Erro na inicialização do Firebase:", error);
+    console.error("Erro crítico na inicialização do Firebase:", error);
 }
 
-// Elementos DOM de Controle de Acesso e Alternâncias
-const tabUser = document.getElementById('tab-user');
-const tabAdmin = document.getElementById('tab-admin');
-const formUserLogin = document.getElementById('form-user-login');
-const formUserRegister = document.getElementById('form-user-register');
-const formAdmin = document.getElementById('form-admin');
+// ==========================================
+// CONTROLE DE TELAS E REGRAS ANTI-SOBREPOSIÇÃO
+// ==========================================
+function gerenciarMudancaDeTela(nomeDaSecao) {
+    // Coleta todas as seções de formulários da tela de autenticação para esconder
+    const todasAsSecoes = document.querySelectorAll('.form-section');
+    todasAsSecoes.forEach(secao => {
+        secao.classList.remove('active');
+    });
 
-const btnSubmitUserLogin = document.getElementById('btn-submit-user-login');
-const btnSubmitUserRegister = document.getElementById('btn-submit-user-register');
-const btnSubmitAdmin = document.getElementById('btn-submit-admin');
+    // Coleta os botões das abas superiores para resetar o estilo visual
+    const abasSuperiores = document.querySelectorAll('.tab-button');
+    abasSuperiores.forEach(aba => {
+        aba.classList.remove('active');
+    });
 
-const linkGoToRegister = document.getElementById('link-go-to-register');
-const linkGoToLogin = document.getElementById('link-go-to-login');
+    const containerAbas = document.getElementById('navigation-tabs');
 
-// Elementos de Navegação das Abas do Cliente
-const btnNavMontador = document.getElementById('btn-nav-montador');
-const btnNavPedidos = document.getElementById('btn-nav-pedidos');
-const sectionMontador = document.getElementById('sub-section-montador');
-const sectionPedidos = document.getElementById('sub-section-pedidos');
+    // Aplica a classe active estritamente na seção solicitada, evitando acúmulos na tela
+    if (nomeDaSecao === 'cliente') {
+        document.getElementById('section-login-cliente').classList.add('active');
+        document.getElementById('tab-btn-cliente').classList.add('active');
+        if (containerAbas) containerAbas.style.display = 'flex';
+    } 
+    else if (nomeDaSecao === 'admin') {
+        document.getElementById('section-login-admin').classList.add('active');
+        document.getElementById('tab-btn-admin').classList.add('active');
+        if (containerAbas) containerAbas.style.display = 'flex';
+    } 
+    else if (nomeDaSecao === 'cadastro') {
+        document.getElementById('section-cadastro-cliente').classList.add('active');
+        if (containerAbas) containerAbas.style.display = 'none'; // Esconde as abas superiores para focar no cadastro
+    }
+}
 
-// Estado da Sessão Atual
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) {
+        targetScreen.classList.add('active');
+    }
+}
+
+// Váriáveis de Estado da Sessão e Aplicação
 let currentUserData = null;
 let currentDrive = { size: 0, limit: 0 };
 let catalogGames = [];
@@ -60,38 +85,33 @@ let selectedGames = [];
 let loadedAdminGamesRaw = [];
 let systemMasterPassword = "admin";
 
-// Gerenciamento e Escuta Ativa de Telas e Sub-abas
+// ==========================================
+// CAPTURA DE COMPORTAMENTOS DE BOTÕES E SUB-ABAS
+// ==========================================
+const btnNavMontador = document.getElementById('btn-nav-montador');
+const btnNavPedidos = document.getElementById('btn-nav-pedidos');
+const sectionMontador = document.getElementById('sub-section-montador');
+const sectionPedidos = document.getElementById('sub-section-pedidos');
+
 if (btnNavMontador && btnNavPedidos) {
     btnNavMontador.addEventListener('click', () => {
         btnNavMontador.classList.add('active');
         btnNavPedidos.classList.remove('active');
-        sectionMontador.classList.add('active');
-        sectionPedidos.classList.remove('active');
+        if (sectionMontador) sectionMontador.classList.add('active');
+        if (sectionPedidos) sectionPedidos.classList.remove('active');
         loadCatalog();
     });
 
     btnNavPedidos.addEventListener('click', () => {
         btnNavPedidos.classList.add('active');
         btnNavMontador.classList.remove('active');
-        sectionPedidos.classList.add('active');
-        sectionMontador.classList.remove('active');
+        if (sectionPedidos) sectionPedidos.classList.add('active');
+        if (sectionMontador) sectionMontador.classList.remove('active');
         loadUserSpecificOrders();
     });
 }
 
-// Alternância para o formulário de Cadastro do Cliente
-linkGoToRegister.addEventListener('click', () => {
-    formUserLogin.style.display = 'none';
-    formUserRegister.style.display = 'flex';
-});
-
-// Alternância para voltar ao Login do Cliente
-linkGoToLogin.addEventListener('click', () => {
-    formUserRegister.style.display = 'none';
-    formUserLogin.style.display = 'flex';
-});
-
-// Escuta ativa para sincronizar a Senha Master do banco de dados Realtime
+// Sincronização em tempo real da senha master corporativa armazenada no banco
 if (isFirebaseConnected) {
     onValue(ref(database, 'settings/masterPassword'), (snapshot) => {
         const value = snapshot.val();
@@ -103,30 +123,7 @@ if (isFirebaseConnected) {
     });
 }
 
-// Trocas de Abas Principais (Cliente vs Admin) na tela de autenticação
-tabUser.addEventListener('click', (e) => {
-    e.preventDefault();
-    tabUser.classList.add('active');
-    tabAdmin.classList.remove('active');
-    formUserLogin.style.display = 'flex';
-    formUserRegister.style.display = 'none';
-    formAdmin.style.display = 'none';
-});
-
-tabAdmin.addEventListener('click', (e) => {
-    e.preventDefault();
-    tabAdmin.classList.add('active');
-    tabUser.classList.remove('active');
-    formUserLogin.style.display = 'none';
-    formUserRegister.style.display = 'none';
-    formAdmin.style.display = 'flex';
-});
-
-function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(screenId).classList.add('active');
-}
-
+// Auxiliares de Feedback Visual de carregamento nos botões
 function setButtonLoadingState(button, text = "ENTRANDO...") {
     button.disabled = true;
     button.classList.add('loading');
@@ -144,159 +141,182 @@ function resetButtonState(button, originalText) {
     button.innerText = originalText;
 }
 
-// ROTINA 1: CADASTRO COMPLETO DO CLIENTE COM USERNAME NO REALTIME DATABASE
-formUserRegister.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const username = document.getElementById('reg-username').value.trim().toLowerCase();
-    const name = document.getElementById('reg-name').value.trim();
-    const lastname = document.getElementById('reg-lastname').value.trim();
-    const whatsapp = document.getElementById('reg-whatsapp').value.trim();
-    const city = document.getElementById('reg-city').value.trim();
-    const masterPass = document.getElementById('reg-master-password').value;
+// ==========================================
+// CADASTRO DE CLIENTE COM VALIDAÇÃO DE USERNAME
+// ==========================================
+const formUserRegister = document.getElementById('form-cliente-cadastro');
+if (formUserRegister) {
+    formUserRegister.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const username = document.getElementById('cadastro-username').value.trim().toLowerCase();
+        const name = document.getElementById('cadastro-nome').value.trim();
+        const lastname = document.getElementById('cadastro-textbox-sobrenome') ? document.getElementById('cadastro-textbox-sobrenome').value.trim() : document.getElementById('cadastro-sobrenome').value.trim();
+        const whatsapp = document.getElementById('cadastro-whatsapp').value.trim();
+        const city = document.getElementById('cadastro-cidade').value.trim();
+        const masterPass = document.getElementById('cadastro-senha-master').value;
+        const btnSubmitUserRegister = formUserRegister.querySelector('button[type="submit"]');
 
-    setButtonLoadingState(btnSubmitUserRegister, "CADASTRANDO...");
+        setButtonLoadingState(btnSubmitUserRegister, "CADASTRANDO...");
 
-    if (masterPass !== systemMasterPassword) {
-        alert("❌ Senha Master de validação incorreta! Operação cancelada.");
-        resetButtonState(btnSubmitUserRegister, "Criar My Conta");
-        return;
-    }
-
-    const newUserPayload = { username, name, lastname, whatsapp, city, role: 'user' };
-
-    if (isFirebaseConnected) {
-        const userRef = ref(database, `users/${username}`);
-        
-        get(userRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                alert("❌ Este username já está sendo utilizado por outro cliente!");
-                resetButtonState(btnSubmitUserRegister, "Criar My Conta");
-            } else {
-                set(userRef, newUserPayload).then(() => {
-                    alert("🎉 Conta criada com sucesso! Faça login com suas credenciais.");
-                    formUserRegister.reset();
-                    resetButtonState(btnSubmitUserRegister, "Criar My Conta");
-                    linkGoToLogin.click();
-                });
-            }
-        }).catch(err => {
-            alert("Erro ao checar banco: " + err.message);
-            resetButtonState(btnSubmitUserRegister, "Criar My Conta");
-        });
-    } else {
-        let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
-        if (localUsers[username]) {
-            alert("❌ Username indisponível.");
-            resetButtonState(btnSubmitUserRegister, "Criar My Conta");
+        if (masterPass !== systemMasterPassword) {
+            alert("❌ Senha Master de validação incorreta! Operação abortada.");
+            resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
             return;
         }
-        localUsers[username] = newUserPayload;
-        localStorage.setItem('mock_users_db', JSON.stringify(localUsers));
-        alert("[MOCK]: Conta criada localmente!");
-        formUserRegister.reset();
-        resetButtonState(btnSubmitUserRegister, "Criar My Conta");
-        linkGoToLogin.click();
-    }
-});
 
-// ROTINA 2: LOGIN DO CLIENTE BASEADO EM USERNAME + VALIDAÇÃO DA SENHA MASTER
-formUserLogin.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const usernameInput = document.getElementById('login-username').value.trim().toLowerCase();
-    const passwordInput = document.getElementById('login-master-password').value;
+        const newUserPayload = { username, name, lastname, whatsapp, city, role: 'user' };
 
-    setButtonLoadingState(btnSubmitUserLogin);
+        if (isFirebaseConnected) {
+            const userRef = ref(database, `users/${username}`);
+            
+            get(userRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    alert("❌ Este username já está em uso por outro cliente!");
+                    resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
+                } else {
+                    set(userRef, newUserPayload).then(() => {
+                        alert("🎉 Conta criada com sucesso! Faça login para continuar.");
+                        formUserRegister.reset();
+                        resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
+                        gerenciarMudancaDeTela('cliente');
+                    });
+                }
+            }).catch(err => {
+                alert("Erro ao checar o banco de dados: " + err.message);
+                resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
+            });
+        } else {
+            let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
+            if (localUsers[username]) {
+                alert("❌ Username indisponível localmente.");
+                resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
+                return;
+            }
+            localUsers[username] = newUserPayload;
+            localStorage.setItem('mock_users_db', JSON.stringify(localUsers));
+            alert("[MOCK]: Conta criada em cache local!");
+            formUserRegister.reset();
+            resetButtonState(btnSubmitUserRegister, "Finalizar Meu Cadastro");
+            gerenciarMudancaDeTela('cliente');
+        }
+    });
+}
 
-    if (passwordInput !== systemMasterPassword) {
-        alert("❌ Senha Master incorreta!");
-        resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
-        return;
-    }
+// ==========================================
+// LOGIN DO CLIENTE (USERNAME + SENHA MASTER)
+// ==========================================
+const formUserLogin = document.getElementById('form-cliente-login');
+if (formUserLogin) {
+    formUserLogin.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const usernameInput = document.getElementById('cliente-username').value.trim().toLowerCase();
+        const passwordInput = document.getElementById('cliente-senha').value;
+        const btnSubmitUserLogin = formUserLogin.querySelector('button[type="submit"]');
 
-    if (isFirebaseConnected) {
-        get(ref(database, `users/${usernameInput}`)).then((snapshot) => {
-            if (snapshot.exists()) {
-                currentUserData = snapshot.val();
+        setButtonLoadingState(btnSubmitUserLogin);
+
+        if (passwordInput !== systemMasterPassword) {
+            alert("❌ Senha Master corporativa incorreta!");
+            resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
+            return;
+        }
+
+        if (isFirebaseConnected) {
+            get(ref(database, `users/${usernameInput}`)).then((snapshot) => {
+                if (snapshot.exists()) {
+                    currentUserData = snapshot.val();
+                    localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
+                    
+                    setupClientEnvironment();
+                    resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
+                    showScreen('drive-selection-screen');
+                    formUserLogin.reset();
+                } else {
+                    alert("❌ Usuário não encontrado no sistema! Efetue o cadastro.");
+                    resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
+                }
+            }).catch(err => {
+                alert("Erro de autenticação no servidor: " + err.message);
+                resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
+            });
+        } else {
+            let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
+            if (localUsers[usernameInput]) {
+                currentUserData = localUsers[usernameInput];
                 localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
-                
                 setupClientEnvironment();
                 resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
                 showScreen('drive-selection-screen');
                 formUserLogin.reset();
             } else {
-                alert("❌ Usuário não encontrado no sistema! Realize o cadastro.");
+                alert("[MOCK]: Usuário inexistente no banco de testes.");
                 resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
             }
-        }).catch(err => {
-            alert("Erro de autenticação: " + err.message);
-            resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
-        });
-    } else {
-        let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
-        if (localUsers[usernameInput]) {
-            currentUserData = localUsers[usernameInput];
-            localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
-            setupClientEnvironment();
-            resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
-            showScreen('drive-selection-screen');
-            formUserLogin.reset();
-        } else {
-            alert("[MOCK]: Usuário inexistente.");
-            resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
         }
-    }
-});
-
-function setupClientEnvironment() {
-    document.getElementById('user-welcome').innerText = `Olá, @${currentUserData.username}`;
-    document.getElementById('tk-username').innerText = `@${currentUserData.username}`;
-    document.getElementById('tk-nome').innerText = currentUserData.name;
-    document.getElementById('tk-sobrenome').innerText = currentUserData.lastname;
-    document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
-    document.getElementById('tk-cidade').innerText = currentUserData.city;
+    });
 }
 
-// ROTINA 3: LOGIN DO ADMINISTRADOR
-formAdmin.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('admin-email').value;
-    const pass = document.getElementById('admin-password').value;
+function setupClientEnvironment() {
+    const welcome = document.getElementById('user-welcome');
+    if (welcome) welcome.innerText = `Olá, @${currentUserData.username}`;
+    
+    if (document.getElementById('tk-username')) document.getElementById('tk-username').innerText = `@${currentUserData.username}`;
+    if (document.getElementById('tk-nome')) document.getElementById('tk-nome').innerText = currentUserData.name;
+    if (document.getElementById('tk-sobrenome')) document.getElementById('tk-sobrenome').innerText = currentUserData.lastname;
+    if (document.getElementById('tk-whatsapp')) document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
+    if (document.getElementById('tk-cidade')) document.getElementById('tk-cidade').innerText = currentUserData.city;
+}
 
-    setButtonLoadingState(btnSubmitAdmin);
+// ==========================================
+// LOGIN DO ADMINISTRADOR (SESSÃO DO ADMIN)
+// ==========================================
+const formAdmin = document.getElementById('form-admin-login');
+if (formAdmin) {
+    formAdmin.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('admin-email').value;
+        const pass = document.getElementById('admin-senha').value;
+        const btnSubmitAdmin = formAdmin.querySelector('button[type="submit"]');
 
-    if (isFirebaseConnected) {
-        signInWithEmailAndPassword(auth, email, pass)
-            .then((userCredential) => {
-                currentUserData = { email: userCredential.user.email, role: 'admin' };
+        setButtonLoadingState(btnSubmitAdmin);
+
+        if (isFirebaseConnected) {
+            signInWithEmailAndPassword(auth, email, pass)
+                .then((userCredential) => {
+                    currentUserData = { email: userCredential.user.email, role: 'admin' };
+                    localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
+                    executeAdminLoginFlow();
+                    resetButtonState(btnSubmitAdmin, "Acessar Painel Master");
+                })
+                .catch(err => {
+                    alert("Acesso Negado Administrativo! Verifique suas credenciais.");
+                    resetButtonState(btnSubmitAdmin, "Acessar Painel Master");
+                });
+        } else {
+            if (email === "admin@teste.com" && pass === "123456") {
+                currentUserData = { email, role: 'admin' };
                 localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
                 executeAdminLoginFlow();
-            })
-            .catch(err => {
-                alert("Acesso Negado! Verifique os dados de administrador.");
-                resetButtonState(btnSubmitAdmin, "Acessar Painel");
-            });
-    } else {
-        if (email === "admin@teste.com" && pass === "123456") {
-            currentUserData = { email, role: 'admin' };
-            localStorage.setItem('gamelist_session_v4', JSON.stringify(currentUserData));
-            executeAdminLoginFlow();
-        } else {
-            alert("[MOCK]: Utilize admin@teste.com e 123456");
-            resetButtonState(btnSubmitAdmin, "Acessar Painel");
+                resetButtonState(btnSubmitAdmin, "Acessar Painel Master");
+            } else {
+                alert("[MOCK]: Use o e-mail admin@teste.com e a senha 123456");
+                resetButtonState(btnSubmitAdmin, "Acessar Painel Master");
+            }
         }
-    }
-});
+    });
+}
 
 function executeAdminLoginFlow() {
     showScreen('admin-screen');
-    formAdmin.reset();
-    resetButtonState(btnSubmitAdmin, "Acessar Painel");
+    if (formAdmin) formAdmin.reset();
     syncCatalogToAdminPanel();
     syncUsersToAdminPanel();
     loadGlobalOrdersForAdmin();
 }
 
-// PERSISTÊNCIA COMPLETA DE SESSÃO ATIVA (MECANISMO ANTI-REFRESH)
+// ==========================================
+// PERSISTÊNCIA E LOGOUT ANTI-REFRESH DE PÁGINA
+// ==========================================
 function checkActiveSessionOnLoad() {
     const cachedSession = localStorage.getItem('gamelist_session_v4');
     if (!cachedSession) {
@@ -324,43 +344,42 @@ function checkActiveSessionOnLoad() {
     }
 }
 
-// LIMPEZA COMPLETA DE LOGOUT
 function processClearLogout() {
-    if (isFirebaseConnected) signOut(auth);
+    if (isFirebaseConnected && auth) signOut(auth);
     currentUserData = null;
     currentDrive = { size: 0, limit: 0 };
     selectedGames = [];
     catalogGames = [];
     
     localStorage.removeItem('gamelist_session_v4');
-    formUserLogin.reset();
-    formUserRegister.reset();
-    formAdmin.reset();
-    
-    resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
-    resetButtonState(btnSubmitAdmin, "Acessar Painel");
+    if (formUserLogin) formUserLogin.reset();
+    if (formUserRegister) formUserRegister.reset();
+    if (formAdmin) formAdmin.reset();
     
     if (btnNavMontador) {
         btnNavMontador.classList.add('active');
         btnNavPedidos.classList.remove('active');
-        sectionMontador.classList.add('active');
-        sectionPedidos.classList.remove('active');
+        if (sectionMontador) sectionMontador.classList.add('active');
+        if (sectionPedidos) sectionPedidos.classList.remove('active');
     }
     
     showScreen('auth-screen');
+    gerenciarMudancaDeTela('cliente');
 }
 
-document.getElementById('logout-btn').addEventListener('click', processClearLogout);
-document.getElementById('app-logout-btn').addEventListener('click', processClearLogout);
-document.getElementById('admin-logout-btn').addEventListener('click', processClearLogout);
+if (document.getElementById('logout-btn')) document.getElementById('logout-btn').addEventListener('click', processClearLogout);
+if (document.getElementById('app-logout-btn')) document.getElementById('app-logout-btn').addEventListener('click', processClearLogout);
+if (document.getElementById('admin-logout-btn')) document.getElementById('admin-logout-btn').addEventListener('click', processClearLogout);
 
-// SELEÇÃO DE PENDRIVE
+// ==========================================
+// SELEÇÃO DO TAMANHO DO PENDRIVE (LIMITES)
+// ==========================================
 document.querySelectorAll('.drive-card').forEach(card => {
     card.addEventListener('click', () => {
         currentDrive.size = card.dataset.size;
         currentDrive.limit = parseFloat(card.dataset.limit);
-        document.getElementById('display-drive-name').innerText = `Pendrive ${currentDrive.size}GB`;
-        document.getElementById('tk-pendrive').innerText = `${currentDrive.size} GB (Limite: ${currentDrive.limit} GB Real)`;
+        if (document.getElementById('display-drive-name')) document.getElementById('display-drive-name').innerText = `Pendrive ${currentDrive.size}GB`;
+        if (document.getElementById('tk-pendrive')) document.getElementById('tk-pendrive').innerText = `${currentDrive.size} GB (Limite Real: ${currentDrive.limit} GB)`;
         
         selectedGames = [];
         showScreen('main-app-screen');
@@ -368,9 +387,11 @@ document.querySelectorAll('.drive-card').forEach(card => {
         updateStorageMeter();
     });
 });
-document.getElementById('btn-back-drives').addEventListener('click', () => { showScreen('drive-selection-screen'); });
+if (document.getElementById('btn-back-drives')) document.getElementById('btn-back-drives').addEventListener('click', () => { showScreen('drive-selection-screen'); });
 
-// FLUXO DO CATÁLOGO DE JOGOS DO CLIENTE
+// ==========================================
+// CONTROLE DO CATÁLOGO DE JOGOS E SELEÇÕES
+// ==========================================
 function loadCatalog() {
     if (!isFirebaseConnected) {
         catalogGames = [
@@ -395,7 +416,9 @@ function loadCatalog() {
 
 function renderCatalogUI() {
     const catalogContainer = document.getElementById('catalog-list');
+    if (!catalogContainer) return;
     catalogContainer.innerHTML = '';
+    
     if (catalogGames.length > 0) {
         catalogGames.forEach(game => {
             const item = document.createElement('div');
@@ -410,7 +433,7 @@ function renderCatalogUI() {
         });
         document.querySelectorAll('.chk-gamer').forEach(chk => { chk.addEventListener('change', handleGameSelection); });
     } else {
-        catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo disponível.</p>';
+        catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo cadastrado no momento.</p>';
     }
 }
 
@@ -426,29 +449,37 @@ function handleGameSelection(e) {
     renderTicketList();
 }
 
-// Medidor de Armazenamento Volumétrico
+// Medidor Volumétrico de Espaço Interno do Hardware
 function updateStorageMeter() {
     const totalSize = selectedGames.reduce((acc, game) => acc + parseFloat(game.size), 0);
     const limit = currentDrive.limit;
     const percentage = Math.min((totalSize / limit) * 100, 100);
-    document.getElementById('progress-bar').style.width = `${percentage}%`;
-    document.getElementById('storage-text').innerText = `${totalSize.toFixed(2)} / ${limit.toFixed(2)} GB`;
-    document.getElementById('game-counter').innerText = `Jogos selecionados: ${selectedGames.length} (Mínimo 5)`;
+    
+    if (document.getElementById('progress-bar')) document.getElementById('progress-bar').style.width = `${percentage}%`;
+    if (document.getElementById('storage-text')) document.getElementById('storage-text').innerText = `${totalSize.toFixed(2)} / ${limit.toFixed(2)} GB`;
+    if (document.getElementById('game-counter')) document.getElementById('game-counter').innerText = `Jogos selecionados: ${selectedGames.length} (Mínimo necessário: 5)`;
     
     const btnGenerate = document.getElementById('btn-generate-list');
-    if (totalSize > limit) {
-        document.getElementById('progress-bar').classList.add('exceeded');
-        btnGenerate.disabled = true;
-    } else {
-        document.getElementById('progress-bar').classList.remove('exceeded');
-        btnGenerate.disabled = selectedGames.length < 5;
+    if (btnGenerate) {
+        if (totalSize > limit) {
+            if (document.getElementById('progress-bar')) document.getElementById('progress-bar').classList.add('exceeded');
+            btnGenerate.disabled = true;
+        } else {
+            if (document.getElementById('progress-bar')) document.getElementById('progress-bar').classList.remove('exceeded');
+            btnGenerate.disabled = selectedGames.length < 5;
+        }
     }
 }
 
 function renderTicketList() {
     const listContainer = document.getElementById('selected-games-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
-    if (selectedGames.length === 0) { listContainer.classList.add('games-list-vazia'); return; }
+    
+    if (selectedGames.length === 0) { 
+        listContainer.classList.add('games-list-vazia'); 
+        return; 
+    }
     listContainer.classList.remove('games-list-vazia');
     selectedGames.forEach(game => {
         const li = document.createElement('li');
@@ -458,50 +489,58 @@ function renderTicketList() {
     });
 }
 
-// CAPTURA DA IMAGEM EM ALTA QUALIDADE E CRIAÇÃO DO PEDIDO
-document.getElementById('btn-generate-list').addEventListener('click', () => {
-    const ticketElement = document.getElementById('ticket-lista');
-    
-    html2canvas(ticketElement, { 
-        backgroundColor: "#ffffff",
-        width: 650,
-        windowWidth: 1200
-    }).then(canvas => {
-        const base64Image = canvas.toDataURL('image/jpeg', 0.9);
+// ==========================================
+// CAPTURA DO PRINT E ENVIO DE PEDIDO (CLIENTE)
+// ==========================================
+const btnGenerateList = document.getElementById('btn-generate-list');
+if (btnGenerateList) {
+    btnGenerateList.addEventListener('click', () => {
+        const ticketElement = document.getElementById('ticket-lista');
         
-        const orderPayload = {
-            client: currentUserData,
-            driveSize: currentDrive.size,
-            imageB64: base64Image,
-            timestamp: Date.now()
-        };
-
-        if (isFirebaseConnected) {
-            push(ref(database, 'orders'), orderPayload)
-                .then(() => { 
-                    alert("🎮 Pedido enviado com sucesso!"); 
-                    selectedGames = [];
-                    renderTicketList();
-                    updateStorageMeter();
-                    btnNavPedidos.click();
-                });
-        } else {
-            let localOrders = JSON.parse(localStorage.getItem('mock_orders_v2') || '[]');
-            orderPayload.id = "ORDER_" + Date.now();
-            localOrders.push(orderPayload);
-            localStorage.setItem('mock_orders_v2', JSON.stringify(localOrders));
+        html2canvas(ticketElement, { 
+            backgroundColor: "#ffffff",
+            width: 650,
+            windowWidth: 1200
+        }).then(canvas => {
+            const base64Image = canvas.toDataURL('image/jpeg', 0.9);
             
-            alert("[MODO TESTE]: Gravado no Cache Local do Navegador.");
-            selectedGames = [];
-            btnNavPedidos.click();
-        }
-    });
-});
+            const orderPayload = {
+                client: currentUserData,
+                driveSize: currentDrive.size,
+                imageB64: base64Image,
+                timestamp: Date.now()
+            };
 
-// HISTÓRICO PARTICULAR: FILTRAGEM POR USERNAME ÚNICO DO CLIENTE
+            if (isFirebaseConnected) {
+                push(ref(database, 'orders'), orderPayload)
+                    .then(() => { 
+                        alert("🎮 Sua lista de jogos foi capturada e enviada com sucesso!"); 
+                        selectedGames = [];
+                        renderTicketList();
+                        updateStorageMeter();
+                        if (btnNavPedidos) btnNavPedidos.click();
+                    });
+            } else {
+                let localOrders = JSON.parse(localStorage.getItem('mock_orders_v2') || '[]');
+                orderPayload.id = "ORDER_" + Date.now();
+                localOrders.push(orderPayload);
+                localStorage.setItem('mock_orders_v2', JSON.stringify(localOrders));
+                
+                alert("[MOCK MODO TESTE]: Salvo localmente na memória do navegador.");
+                selectedGames = [];
+                if (btnNavPedidos) btnNavPedidos.click();
+            }
+        });
+    });
+}
+
+// ==========================================
+// HISTÓRICO PARTICULAR DE SOLICITAÇÕES DO CLIENTE
+// ==========================================
 function loadUserSpecificOrders() {
     const container = document.getElementById('client-orders-history-list');
-    container.innerHTML = '<p style="color: var(--text-muted)">Carregando seu histórico de pedidos...</p>';
+    if (!container) return;
+    container.innerHTML = '<p style="color: var(--text-muted)">Carregando seu histórico de pedidos direto do servidor...</p>';
 
     if (!isFirebaseConnected) {
         let localOrders = JSON.parse(localStorage.getItem('mock_orders_v2') || '[]');
@@ -526,10 +565,11 @@ function loadUserSpecificOrders() {
 
 function renderUserOrdersUI(orders) {
     const container = document.getElementById('client-orders-history-list');
+    if (!container) return;
     container.innerHTML = '';
 
     if (orders.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido efetuado sob este usuário.</p>';
+        container.innerHTML = '<p style="color: var(--text-muted)">Você não efetuou nenhuma montagem ainda.</p>';
         return;
     }
 
@@ -549,7 +589,7 @@ function renderUserOrdersUI(orders) {
                 <span style="font-size:12px; opacity:0.5;">ID: ${order.id}</span>
             </div>
             <div class="client-order-body">
-                <img src="${order.imageB64}" alt="Lista Físico-Digital">
+                <img src="${order.imageB64}" alt="Lista Capturada">
                 <div>
                     <button type="button" class="btn-danger-action btn-delete-my-order" data-id="${order.id}">Cancelar Pedido</button>
                 </div>
@@ -561,10 +601,10 @@ function renderUserOrdersUI(orders) {
     container.querySelectorAll('.btn-delete-my-order').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const orderId = e.target.dataset.id;
-            if (confirm("Deseja deletar este pedido do sistema de forma permanente?")) {
+            if (confirm("Deseja apagar esta solicitação do sistema definitivamente?")) {
                 if (isFirebaseConnected) {
                     remove(ref(database, `orders/${orderId}`))
-                        .then(() => alert("Pedido excluído!"));
+                        .then(() => alert("Pedido cancelado e removido."));
                 } else {
                     let localOrders = JSON.parse(localStorage.getItem('mock_orders_v2') || '[]');
                     localOrders = localOrders.filter(o => o.id !== orderId);
@@ -577,18 +617,18 @@ function renderUserOrdersUI(orders) {
     });
 }
 
-// CONTROLADORES EXCLUSIVOS DO PAINEL ADMINISTRATIVO (ADMIN)
+// ==========================================
+// PAINEL ADMINISTRATIVO (GERENCIADOR GLOBAL)
+// ==========================================
 function syncCatalogToAdminPanel() {
     if (!isFirebaseConnected) {
         loadedAdminGamesRaw = [
             { title: "GTA San Andreas Ultra", size: 4.3 },
-            { title: "Resident Evil 4 Remake", size: 3.5 },
-            { title: "God of War II Nostalgia", size: 7.9 }
+            { title: "Resident Evil 4 Remake", size: 3.5 }
         ];
         renderAdminManageUI([
             { id: "1", title: "GTA San Andreas Ultra", size: "4.3" },
-            { id: "2", title: "Resident Evil 4 Remake", size: "3.5" },
-            { id: "3", title: "God of War II Nostalgia", size: "7.9" }
+            { id: "2", title: "Resident Evil 4 Remake", size: "3.5" }
         ]);
         return;
     }
@@ -607,12 +647,13 @@ function syncCatalogToAdminPanel() {
 }
 
 function renderAdminManageUI(games) {
-    document.getElementById('admin-catalog-count').innerText = games.length;
+    if(document.getElementById('admin-catalog-count')) document.getElementById('admin-catalog-count').innerText = games.length;
     const container = document.getElementById('admin-catalog-manage-list');
+    if (!container) return;
     container.innerHTML = '';
 
     if (games.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Catálogo vazio.</p>';
+        container.innerHTML = '<p style="color:var(--text-muted); padding:10px;">Catálogo sem jogos.</p>';
         return;
     }
 
@@ -629,22 +670,19 @@ function renderAdminManageUI(games) {
     container.querySelectorAll('.btn-delete-game').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const gameId = e.target.dataset.id;
-            if (confirm("Remover este jogo do catálogo público?")) {
-                if (isFirebaseConnected) {
-                    remove(ref(database, `catalog/${gameId}`));
-                }
+            if (confirm("Remover permanentemente este título do acervo?")) {
+                if (isFirebaseConnected) remove(ref(database, `catalog/${gameId}`));
             }
         });
     });
 }
 
-// Sincronização e Deleção Real de Usuários (Anti-poluição)
 function syncUsersToAdminPanel() {
     const userContainer = document.getElementById('admin-users-manage-list');
     if (!userContainer) return;
 
     if (!isFirebaseConnected) {
-        userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Modo simulado local (Sem leitura de usuários).</p>';
+        userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Modo teste local ativo.</p>';
         return;
     }
 
@@ -666,196 +704,241 @@ function syncUsersToAdminPanel() {
             userContainer.querySelectorAll('.btn-purge-user').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const targetUser = e.currentTarget.dataset.username;
-                    if (confirm(`⚠️ ALERTA MÁXIMO:\nDeseja DELETAR permanentemente o usuário @${targetUser} do banco de dados? O cliente perderá o acesso instantaneamente.`)) {
+                    if (confirm(`⚠️ EXPULSAR DO BANCO:\nDeseja DELETAR em definitivo o cliente @${targetUser}? Ele perderá o acesso imediatamente.`)) {
                         remove(ref(database, `users/${targetUser}`))
-                            .then(() => alert(`Usuário @${targetUser} foi banido e apagado com sucesso.`));
+                            .then(() => alert(`Usuário @${targetUser} foi expulso.`));
                     }
                 });
             });
         } else {
-            userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Nenhum usuário cadastrado.</p>';
+            userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Nenhum usuário registrado.</p>';
         }
     });
 }
 
-// Cadastro Manual de Jogos pelo Administrador
-document.getElementById('form-add-game').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const title = document.getElementById('game-title').value;
-    const size = document.getElementById('game-size').value;
+// Inserção Manual de Jogos Únicos
+const formAddGame = document.getElementById('form-add-game');
+if (formAddGame) {
+    formAddGame.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = document.getElementById('game-title').value;
+        const size = document.getElementById('game-size').value;
 
-    if (isFirebaseConnected) {
-        push(ref(database, 'catalog'), { title: title, size: parseFloat(size).toFixed(1) }).then(() => {
-            alert("Jogo adicionado com sucesso!");
-            document.getElementById('form-add-game').reset();
-        });
-    } else {
-        alert("Inserido com sucesso na simulação.");
-        document.getElementById('form-add-game').reset();
-    }
-});
-
-// Importador em Lote JSON
-document.getElementById('btn-import-json').addEventListener('click', (e) => {
-    const rawJson = document.getElementById('json-import-textarea').value.trim();
-    const btn = e.target;
-
-    if (!rawJson) { alert("Cole o código JSON estruturado antes!"); return; }
-
-    try {
-        const gamesList = JSON.parse(rawJson);
-        if (!Array.isArray(gamesList)) { alert("O JSON deve conter um Array de objetos!"); return; }
-
-        if (confirm(`Confirmar a injeção em lote de ${gamesList.length} jogos?`)) {
-            setGenericButtonFeedback(btn, "PROCESSANDO...");
-            
-            if (isFirebaseConnected) {
-                const catalogRef = ref(database, 'catalog');
-                let promises = gamesList.map(game => {
-                    return push(catalogRef, { title: game.title, size: parseFloat(game.size).toFixed(1) });
-                });
-
-                Promise.all(promises).then(() => {
-                    alert("Injeção em lote concluída!");
-                    document.getElementById('json-import-textarea').value = "";
-                    resetButtonState(btn, "Importar JSON");
-                });
-            } else {
-                alert(`[MOCK]: Injetado ${gamesList.length} itens.`);
-                resetButtonState(btn, "Importar JSON");
-            }
+        if (isFirebaseConnected) {
+            push(ref(database, 'catalog'), { title: title, size: parseFloat(size).toFixed(1) }).then(() => {
+                alert("Título inserido com sucesso!");
+                formAddGame.reset();
+            });
+        } else {
+            alert("Título emulado no painel de testes.");
+            formAddGame.reset();
         }
-    } catch (err) {
-        alert("Erro na leitura do JSON: " + err.message);
-    }
-});
+    });
+}
 
-// Exportador em Bloco JSON
-document.getElementById('btn-export-json').addEventListener('click', () => {
-    if (loadedAdminGamesRaw.length === 0) { alert("Catálogo vazio para exportações."); return; }
-    try {
-        const jsonString = JSON.stringify(loadedAdminGamesRaw, null, 2);
-        const blob = new Blob([jsonString], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `backup_gamelist_${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        alert("Erro ao exportar: " + e.message);
-    }
-});
+// Ferramenta Bulk-Import (JSON em lote)
+const btnImportJson = document.getElementById('btn-import-json');
+if (btnImportJson) {
+    btnImportJson.addEventListener('click', (e) => {
+        const rawJson = document.getElementById('json-import-textarea').value.trim();
+        const btn = e.target;
 
-// Limpeza Integral do Catálogo
-document.getElementById('btn-clear-catalog').addEventListener('click', () => {
-    if (confirm("Deseja LIMPAR TODO o acervo de jogos do servidor?")) {
-        if (isFirebaseConnected) remove(ref(database, 'catalog'));
-    }
-});
+        if (!rawJson) { alert("Por favor, cole a estrutura de dados JSON para prosseguir!"); return; }
 
-// Troca de Senha Master
-document.getElementById('form-update-master').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const newMaster = document.getElementById('admin-master-input').value;
-    const btn = document.getElementById('btn-update-master');
-    
-    setGenericButtonFeedback(btn, "SALVANDO...");
-    if (isFirebaseConnected) {
-        set(ref(database, 'settings/masterPassword'), newMaster).then(() => {
-            alert("Senha Master redefinida!");
+        try {
+            const gamesList = JSON.parse(rawJson);
+            if (!Array.isArray(gamesList)) { alert("O código estrutural precisa obrigatoriamente ser um Array!"); return; }
+
+            if (confirm(`Deseja injetar em lote os ${gamesList.length} jogos catalogados no JSON?`)) {
+                setGenericButtonFeedback(btn, "IMPORTANDO JOGOS...");
+                
+                if (isFirebaseConnected) {
+                    const catalogRef = ref(database, 'catalog');
+                    let promises = gamesList.map(game => {
+                        return push(catalogRef, { title: game.title, size: parseFloat(game.size).toFixed(1) });
+                    });
+
+                    Promise.all(promises).then(() => {
+                        alert("Injeção em lote finalizada!");
+                        document.getElementById('json-import-textarea').value = "";
+                        resetButtonState(btn, "Importar JSON");
+                    });
+                } else {
+                    alert(`[MOCK]: ${gamesList.length} processados localmente.`);
+                    resetButtonState(btn, "Importar JSON");
+                }
+            }
+        } catch (err) {
+            alert("Falha estrutural na codificação do JSON: " + err.message);
+        }
+    });
+}
+
+// Backup em Lote (Exportar Catálogo em JSON)
+const btnExportJson = document.getElementById('btn-export-json');
+if (btnExportJson) {
+    btnExportJson.addEventListener('click', () => {
+        if (loadedAdminGamesRaw.length === 0) { alert("Nenhum dado ativo disponível para exportação."); return; }
+        try {
+            const jsonString = JSON.stringify(loadedAdminGamesRaw, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_gamelist_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("Falha de exportação de dados: " + e.message);
+        }
+    });
+}
+
+if(document.getElementById('btn-clear-catalog')) {
+    document.getElementById('btn-clear-catalog').addEventListener('click', () => {
+        if (confirm("Deseja DELETAR TODO o catálogo de jogos público definitivamente?")) {
+            if (isFirebaseConnected) remove(ref(database, 'catalog'));
+        }
+    });
+}
+
+// Alteração de Senha Corporativa Master
+const formUpdateMaster = document.getElementById('form-update-master');
+if (formUpdateMaster) {
+    formUpdateMaster.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newMaster = document.getElementById('admin-master-input').value;
+        const btn = document.getElementById('btn-update-master');
+        
+        setGenericButtonFeedback(btn, "ATUALIZANDO...");
+        if (isFirebaseConnected) {
+            set(ref(database, 'settings/masterPassword'), newMaster).then(() => {
+                alert("Nova Senha Master em operação no banco!");
+                resetButtonState(btn, "Atualizar Senha");
+            });
+        } else {
+            systemMasterPassword = newMaster;
+            alert("Nova senha local configurada.");
             resetButtonState(btn, "Atualizar Senha");
-        });
-    } else {
-        systemMasterPassword = newMaster;
-        alert("Redefinido localmente.");
-        resetButtonState(btn, "Atualizar Senha");
-    }
-});
+        }
+    });
+}
 
-// Coleta e pooling de Pedidos Globais com Recursos de Visualização, Download e Purga
+// ==========================================
+// FILA DE PEDIDOS RECEBIDOS (VER E BAIXAR LISTAS)
+// ==========================================
 function loadGlobalOrdersForAdmin() {
     if (!isFirebaseConnected) return;
     onValue(ref(database, 'orders'), (snapshot) => {
         const container = document.getElementById('orders-container');
+        if (!container) return;
         container.innerHTML = '';
         const data = snapshot.val();
+        
         if (data) {
             Object.keys(data).forEach(key => {
                 const order = data[key];
                 const box = document.createElement('div');
                 box.classList.add('order-box');
                 
-                // Monta estrutura organizada com botões adicionais (Ver lista e Baixar lista)
                 box.innerHTML = `
                     <div class="order-box-header">
                         <div class="order-box-details">
                             <p><strong>Username:</strong> @${order.client.username}</p>
-                            <p><strong>Nome:</strong> ${order.client.name} ${order.client.lastname}</p>
-                            <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
-                            <p><strong>Hardware:</strong> Pendrive de ${order.driveSize}GB</p>
+                            <p><strong>Nome do Cliente:</strong> ${order.client.name} ${order.client.lastname}</p>
+                            <p><strong>Contato/WhatsApp:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
+                            <p><strong>Hardware Escolhido:</strong> Pendrive de ${order.driveSize}GB</p>
                         </div>
                         <div class="admin-order-actions">
                             <button type="button" class="btn-info-action btn-view-order-list" data-img="${order.imageB64}">Ver lista</button>
                             <button type="button" class="btn-success-action btn-download-order-list" data-username="${order.client.username}" data-img="${order.imageB64}">Baixar lista</button>
-                            <button type="button" class="btn-danger-action btn-purge-order" data-orderid="${key}">Excluir Registro de Pedido</button>
+                            <button type="button" class="btn-danger-action btn-purge-order" data-orderid="${key}">Remover Pedido</button>
                         </div>
                     </div>
-                    <img src="${order.imageB64}" alt="Print do Pedido">
+                    <img src="${order.imageB64}" alt="Print Completo do Pedido">
                 `;
                 container.appendChild(box);
             });
 
-            // Evento: Ver lista (Abre em outra aba)
+            // AÇÃO ADICIONADA: Ver lista (Abre a captura limpa em outra aba do navegador)
             container.querySelectorAll('.btn-view-order-list').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const base64Data = e.currentTarget.dataset.img;
                     const novaAba = window.open();
                     if(novaAba) {
-                        novaAba.document.write(`<title>Visualizar Lista</title><body style="margin:0; background:#050507; display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${base64Data}" style="max-width:100%; height:auto; border:2px solid #202028; border-radius:8px;"></body>`);
+                        novaAba.document.write(`<title>Visualizar Ticket de Lista</title><body style="margin:0; background:#0d0e12; display:flex; justify-content:center; align-items:center; min-height:100vh;"><img src="${base64Data}" style="max-width:100%; height:auto; border:2px solid #24262f; border-radius:8px; box-shadow: 0 0 20px rgba(0,0,0,0.8);"></body>`);
                     } else {
-                        alert("O bloqueador de pop-ups impediu a abertura da nova aba.");
+                        alert("Por favor, ative a liberação de Pop-ups no seu navegador para abrir a imagem.");
                     }
                 });
             });
 
-            // Evento: Baixar lista (Força download JPG)
+            // AÇÃO ADICIONADA: Baixar lista (Força o download direto em arquivo .jpg)
             container.querySelectorAll('.btn-download-order-list').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const base64Data = e.currentTarget.dataset.img;
                     const clientUser = e.currentTarget.dataset.username;
                     const linkDownload = document.createElement('a');
                     linkDownload.href = base64Data;
-                    linkDownload.download = `lista_${clientUser}_${Date.now()}.jpg`;
+                    linkDownload.download = `lista_jogos_${clientUser}_${Date.now()}.jpg`;
                     document.body.appendChild(linkDownload);
                     linkDownload.click();
                     document.body.removeChild(linkDownload);
                 });
             });
 
-            // Evento: Excluir Registro
+            // Ação Admin: Expurgar registro da fila
             container.querySelectorAll('.btn-purge-order').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const idDoPedido = e.currentTarget.dataset.orderid;
-                    if (confirm("Deseja expurgar permanentemente este registro de pedido do painel administrativo?")) {
+                    if (confirm("Deseja arquivar e apagar de forma definitiva o registro deste pedido de sua fila global?")) {
                         remove(ref(database, `orders/${idDoPedido}`))
-                            .then(() => alert("Registro de pedido deletado com sucesso."));
+                            .then(() => alert("Registro expurgado da base ativa."));
                     }
                 });
             });
         } else {
-            container.innerHTML = '<p style="color: var(--text-muted)">Fila global de pedidos limpa.</p>';
+            container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido pendente de montagem na fila global.</p>';
         }
     });
 }
 
-// Inicializações Automáticas ao Carregar o Navegador
+// ==========================================
+// ESCUTAS AUTOMÁTICAS DE INICIALIZAÇÃO DA PÁGINA
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
+    // Roda verificação anti-refresh de persistência de conta logada
     checkActiveSessionOnLoad();
+
+    // Vincula cliques nas abas superiores da tela de login/cadastro para evitar sobreposições
+    if (document.getElementById('tab-btn-cliente')) {
+        document.getElementById('tab-btn-cliente').addEventListener('click', () => {
+            gerenciarMudancaDeTela('cliente');
+        });
+    }
+
+    if (document.getElementById('tab-btn-admin')) {
+        document.getElementById('tab-btn-admin').addEventListener('click', () => {
+            gerenciarMudancaDeTela('admin');
+        });
+    }
+
+    // Vincula cliques nos links alternadores em formato de texto
+    if (document.getElementById('link-abrir-cadastro')) {
+        document.getElementById('link-abrir-cadastro').addEventListener('click', () => {
+            gerenciarMudancaDeTela('cadastro');
+        });
+    }
+
+    if (document.getElementById('link-voltar-login')) {
+        document.getElementById('link-voltar-login').addEventListener('click', () => {
+            gerenciarMudancaDeTela('cliente');
+        });
+    }
     
-    // Pooling de sincronização em tempo real caso o painel admin esteja visível
+    // Pooling de verificação secundária em tempo real a cada 5 segundos no painel administrativo
     setInterval(() => {
         const adminPanel = document.getElementById('admin-screen');
         if (adminPanel && adminPanel.classList.contains('active')) {
