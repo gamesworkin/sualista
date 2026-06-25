@@ -45,7 +45,6 @@ const btnSubmitAdmin = document.getElementById('btn-submit-admin');
 
 const linkGoToRegister = document.getElementById('link-go-to-register');
 const linkGoToLogin = document.getElementById('link-go-to-login');
-const authTabsContainer = document.getElementById('auth-tabs-container');
 
 // Elementos de Navegação das Abas do Cliente
 const btnNavMontador = document.getElementById('btn-nav-montador');
@@ -157,7 +156,6 @@ formUserRegister.addEventListener('submit', (e) => {
 
     setButtonLoadingState(btnSubmitUserRegister, "CADASTRANDO...");
 
-    // Validação de Segurança Base com a Senha Master
     if (masterPass !== systemMasterPassword) {
         alert("❌ Senha Master de validação incorreta! Operação cancelada.");
         resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
@@ -169,7 +167,6 @@ formUserRegister.addEventListener('submit', (e) => {
     if (isFirebaseConnected) {
         const userRef = ref(database, `users/${username}`);
         
-        // Verifica se o username já existe no banco antes de gravar
         get(userRef).then((snapshot) => {
             if (snapshot.exists()) {
                 alert("❌ Este username já está sendo utilizado por outro cliente!");
@@ -187,7 +184,6 @@ formUserRegister.addEventListener('submit', (e) => {
             resetButtonState(btnSubmitUserRegister, "Criar Minha Conta");
         });
     } else {
-        // Fluxo Local de Fallback
         let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
         if (localUsers[username]) {
             alert("❌ Username indisponível.");
@@ -221,7 +217,7 @@ formUserLogin.addEventListener('submit', (e) => {
         get(ref(database, `users/${usernameInput}`)).then((snapshot) => {
             if (snapshot.exists()) {
                 currentUserData = snapshot.val();
-                localStorage.setItem('gamelist_session_v2', JSON.stringify(currentUserData));
+                localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
                 
                 setupClientEnvironment();
                 resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
@@ -236,11 +232,10 @@ formUserLogin.addEventListener('submit', (e) => {
             resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
         });
     } else {
-        // Validação Simulatória Local
         let localUsers = JSON.parse(localStorage.getItem('mock_users_db') || '{}');
         if (localUsers[usernameInput]) {
             currentUserData = localUsers[usernameInput];
-            localStorage.setItem('gamelist_session_v2', JSON.stringify(currentUserData));
+            localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
             setupClientEnvironment();
             resetButtonState(btnSubmitUserLogin, "Entrar no Sistema");
             showScreen('drive-selection-screen');
@@ -273,7 +268,7 @@ formAdmin.addEventListener('submit', (e) => {
         signInWithEmailAndPassword(auth, email, pass)
             .then((userCredential) => {
                 currentUserData = { email: userCredential.user.email, role: 'admin' };
-                localStorage.setItem('gamelist_session_v2', JSON.stringify(currentUserData));
+                localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
                 executeAdminLoginFlow();
             })
             .catch(err => {
@@ -283,7 +278,7 @@ formAdmin.addEventListener('submit', (e) => {
     } else {
         if (email === "admin@teste.com" && pass === "123456") {
             currentUserData = { email, role: 'admin' };
-            localStorage.setItem('gamelist_session_v2', JSON.stringify(currentUserData));
+            localStorage.setItem('gamelist_session_v3', JSON.stringify(currentUserData));
             executeAdminLoginFlow();
         } else {
             alert("[MOCK]: Utilize admin@teste.com e 123456");
@@ -297,11 +292,12 @@ function executeAdminLoginFlow() {
     formAdmin.reset();
     resetButtonState(btnSubmitAdmin, "Acessar Painel");
     syncCatalogToAdminPanel();
+    syncUsersToAdminPanel();
 }
 
-// PERSISTÊNCIA COMPLETA DE SESSÃO ATIVA (MECANISMO ANTI-REFRESH / F5)
+// PERSISTÊNCIA COMPLETA DE SESSÃO ATIVA (MECANISMO ANTI-REFRESH)
 function checkActiveSessionOnLoad() {
-    const cachedSession = localStorage.getItem('gamelist_session_v2');
+    const cachedSession = localStorage.getItem('gamelist_session_v3');
     if (!cachedSession) {
         showScreen('auth-screen');
         return;
@@ -335,7 +331,7 @@ function processClearLogout() {
     selectedGames = [];
     catalogGames = [];
     
-    localStorage.removeItem('gamelist_session_v2');
+    localStorage.removeItem('gamelist_session_v3');
     formUserLogin.reset();
     formUserRegister.reset();
     formAdmin.reset();
@@ -429,6 +425,7 @@ function handleGameSelection(e) {
     renderTicketList();
 }
 
+// Medidor de Armazenamento Volumétrico
 function updateStorageMeter() {
     const totalSize = selectedGames.reduce((acc, game) => acc + parseFloat(game.size), 0);
     const limit = currentDrive.limit;
@@ -464,7 +461,6 @@ function renderTicketList() {
 document.getElementById('btn-generate-list').addEventListener('click', () => {
     const ticketElement = document.getElementById('ticket-lista');
     
-    // Configurações do html2canvas para garantir largura padrão mesmo em telas minimizadas
     html2canvas(ticketElement, { 
         backgroundColor: "#ffffff",
         width: 650,
@@ -641,6 +637,46 @@ function renderAdminManageUI(games) {
     });
 }
 
+// Sincronização e Deleção Real de Usuários (Anti-poluição)
+function syncUsersToAdminPanel() {
+    const userContainer = document.getElementById('admin-users-manage-list');
+    if (!userContainer) return;
+
+    if (!isFirebaseConnected) {
+        userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Modo simulado local (Sem leitura de usuários).</p>';
+        return;
+    }
+
+    onValue(ref(database, 'users'), (snapshot) => {
+        userContainer.innerHTML = '';
+        const data = snapshot.val();
+        if (data) {
+            Object.keys(data).forEach(usernameKey => {
+                const user = data[usernameKey];
+                const div = document.createElement('div');
+                div.classList.add('admin-manage-item');
+                div.innerHTML = `
+                    <div><strong>@${user.username}</strong> <span>(${user.name})</span></div>
+                    <button type="button" class="btn-delete-game btn-purge-user" data-username="${user.username}">❌</button>
+                `;
+                userContainer.appendChild(div);
+            });
+
+            userContainer.querySelectorAll('.btn-purge-user').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetUser = e.currentTarget.dataset.username;
+                    if (confirm(`⚠️ ALERTA MÁXIMO:\nDeseja DELETAR permanentemente o usuário @${targetUser} do banco de dados? O cliente perderá o acesso instantaneamente.`)) {
+                        remove(ref(database, `users/${targetUser}`))
+                            .then(() => alert(`Usuário @${targetUser} foi banido e apagado com sucesso.`));
+                    }
+                });
+            });
+        } else {
+            userContainer.innerHTML = '<p style="color: var(--text-muted); padding: 10px;">Nenhum usuário cadastrado.</p>';
+        }
+    });
+}
+
 // Cadastro Manual de Jogos pelo Administrador
 document.getElementById('form-add-game').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -738,7 +774,7 @@ document.getElementById('form-update-master').addEventListener('submit', (e) => 
     }
 });
 
-// Coleta e pooling de Pedidos Globais para o Admin
+// Coleta e pooling de Pedidos Globais com Botão de Deleção pelo Administrador
 function loadGlobalOrdersForAdmin() {
     if (!isFirebaseConnected) return;
     onValue(ref(database, 'orders'), (snapshot) => {
@@ -751,13 +787,28 @@ function loadGlobalOrdersForAdmin() {
                 const box = document.createElement('div');
                 box.classList.add('order-box');
                 box.innerHTML = `
-                    <p><strong>Username:</strong> @${order.client.username}</p>
-                    <p><strong>Nome:</strong> ${order.client.name} ${order.client.lastname}</p>
-                    <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
-                    <p><strong>Hardware:</strong> Pendrive de ${order.driveSize}GB</p>
+                    <div class="order-box-header">
+                        <div class="order-box-details">
+                            <p><strong>Username:</strong> @${order.client.username}</p>
+                            <p><strong>Nome:</strong> ${order.client.name} ${order.client.lastname}</p>
+                            <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
+                            <p><strong>Hardware:</strong> Pendrive de ${order.driveSize}GB</p>
+                        </div>
+                        <button type="button" class="btn-danger-action btn-purge-order" data-orderid="${key}">Excluir Registro de Pedido</button>
+                    </div>
                     <img src="${order.imageB64}" alt="Print do Pedido">
                 `;
                 container.appendChild(box);
+            });
+
+            container.querySelectorAll('.btn-purge-order').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idDoPedido = e.currentTarget.dataset.orderid;
+                    if (confirm("Deseja expurgar permanentemente este registro de pedido do painel administrativo?")) {
+                        remove(ref(database, `orders/${idDoPedido}`))
+                            .then(() => alert("Registro de pedido deletado com sucesso."));
+                    }
+                });
             });
         } else {
             container.innerHTML = '<p style="color: var(--text-muted)">Fila global de pedidos limpa.</p>';
