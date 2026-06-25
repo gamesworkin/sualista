@@ -14,10 +14,23 @@ const firebaseConfig = {
     appId: "SEU_APP_ID"
 };
 
-// Inicializações do Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const database = getDatabase(app);
+// Inicializações seguras do Firebase (Protegido contra travamento sem credenciais)
+let app, auth, database;
+let isFirebaseConnected = false;
+
+try {
+    if (firebaseConfig.apiKey !== "SUA_API_KEY" && firebaseConfig.apiKey !== "") {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        database = getDatabase(app);
+        isFirebaseConnected = true;
+        console.log("🔥 Firebase inicializado com sucesso.");
+    } else {
+        console.warn("⚠️ Firebase não configurado. Rodando em modo de simulação local.");
+    }
+} catch (error) {
+    console.error("Erro ao tentar ler o Firebase:", error);
+}
 
 // Estado do Aplicativo de Usuário Atual
 let currentUserData = null;
@@ -26,28 +39,25 @@ let catalogGames = [];
 let selectedGames = [];
 
 // ==========================================
-// CONTROLE DE TELAS E ABAS CORRIGIDO (LOGIN)
+// CONTROLE DE TELAS E ABAS (100% INDEPENDENTE)
 // ==========================================
 const tabUser = document.getElementById('tab-user');
 const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
 const formAdmin = document.getElementById('form-admin');
 
-// Elementos de gatilho de clique corrigidos
 tabUser.addEventListener('click', (e) => {
     e.preventDefault();
     tabUser.classList.add('active');
     tabAdmin.classList.remove('active');
     
-    // Altera a exibição física tirando conflitos do navegador
     formUser.style.display = 'flex';
     formAdmin.style.display = 'none';
     
-    // Gerenciamento rígido de validação required
     formUser.querySelectorAll('input').forEach(input => input.setAttribute('required', 'true'));
     formAdmin.querySelectorAll('input').forEach(input => {
         input.removeAttribute('required');
-        input.value = ""; // Limpa para evitar envios fantasmas
+        input.value = ""; 
     });
 });
 
@@ -56,15 +66,13 @@ tabAdmin.addEventListener('click', (e) => {
     tabAdmin.classList.add('active');
     tabUser.classList.remove('active');
     
-    // Altera a exibição física tirando conflitos do navegador
     formAdmin.style.display = 'flex';
     formUser.style.display = 'none';
     
-    // Gerenciamento rígido de validação required
     formAdmin.querySelectorAll('input').forEach(input => input.setAttribute('required', 'true'));
     formUser.querySelectorAll('input').forEach(input => {
         input.removeAttribute('required');
-        input.value = ""; // Limpa para evitar envios fantasmas
+        input.value = ""; 
     });
 });
 
@@ -74,13 +82,12 @@ function showScreen(screenId) {
 }
 
 // ==========================================
-// FLUXO DE AUTENTICAÇÃO (SUBMITS MAPEADOS DIRETAMENTE)
+// FLUXO DE AUTENTICAÇÃO (COM FALLBACK LOCAL)
 // ==========================================
 
 document.getElementById('btn-submit-user').addEventListener('click', (e) => {
     e.preventDefault();
     
-    // Força a checagem nativa de validação já que removemos o comportamento nativo de quebra do form
     const masterPass = document.getElementById('master-password').value;
     const name = document.getElementById('user-name').value;
     const lastname = document.getElementById('user-lastname').value;
@@ -94,20 +101,23 @@ document.getElementById('btn-submit-user').addEventListener('click', (e) => {
     
     currentUserData = { name, lastname, whatsapp, city, role: 'user' };
 
-    // Injeta os dados cadastrados diretamente nos elementos internos do Ticket
     document.getElementById('tk-nome').innerText = currentUserData.name;
     document.getElementById('tk-sobrenome').innerText = currentUserData.lastname;
     document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
     document.getElementById('tk-cidade').innerText = currentUserData.city;
 
-    signInWithEmailAndPassword(auth, "master@gamelist.com", masterPass)
-        .then(() => {
-            showScreen('drive-selection-screen');
-            formUser.reset();
-        })
-        .catch(err => {
-            alert("Senha Master Inválida! Erro: " + err.message);
-        });
+    if (isFirebaseConnected) {
+        signInWithEmailAndPassword(auth, "master@gamelist.com", masterPass)
+            .then(() => {
+                showScreen('drive-selection-screen');
+                formUser.reset();
+            })
+            .catch(err => alert("Senha Master Inválida! Erro: " + err.message));
+    } else {
+        // Se o Firebase não estiver configurado, deixa passar para você testar as telas do sistema
+        alert("[MODO TESTE LOCAL]: Acesso concedido sem Firebase.");
+        showScreen('drive-selection-screen');
+    }
 });
 
 document.getElementById('btn-submit-admin').addEventListener('click', (e) => {
@@ -120,27 +130,40 @@ document.getElementById('btn-submit-admin').addEventListener('click', (e) => {
         return;
     }
 
-    signInWithEmailAndPassword(auth, email, pass)
-        .then(() => {
-            currentUserData = { role: 'admin' };
-            showScreen('admin-screen');
-            formAdmin.reset();
-        })
-        .catch(err => {
-            alert("Acesso Administrativo Negado! Verifique email e senha.");
-        });
+    if (isFirebaseConnected) {
+        signInWithEmailAndPassword(auth, email, pass)
+            .then(() => {
+                currentUserData = { role: 'admin' };
+                showScreen('admin-screen');
+                formAdmin.reset();
+            })
+            .catch(err => alert("Acesso Administrativo Negado! Verifique email e senha."));
+    } else {
+        // Deixa entrar direto no painel Admin para você testar as responsividades locais
+        alert("[MODO TESTE LOCAL]: Painel Admin aberto sem Firebase.");
+        currentUserData = { role: 'admin' };
+        showScreen('admin-screen');
+    }
 });
 
 // Botões de Desconexão (Sair)
-document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-document.getElementById('admin-logout-btn').addEventListener('click', () => signOut(auth));
-
-onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        showScreen('auth-screen');
-        selectedGames = [];
-    }
+document.getElementById('logout-btn').addEventListener('click', () => {
+    if (isFirebaseConnected) signOut(auth);
+    showScreen('auth-screen');
 });
+document.getElementById('admin-logout-btn').addEventListener('click', () => {
+    if (isFirebaseConnected) signOut(auth);
+    showScreen('auth-screen');
+});
+
+if (isFirebaseConnected) {
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            showScreen('auth-screen');
+            selectedGames = [];
+        }
+    });
+}
 
 // ==========================================
 // SELEÇÃO DO PENDRIVE
@@ -150,13 +173,10 @@ document.querySelectorAll('.drive-card').forEach(card => {
         currentDrive.size = card.dataset.size;
         currentDrive.limit = parseFloat(card.dataset.limit);
         
-        // Atualiza textos na tela principal e injeta o tamanho no Ticket (JPEG)
         document.getElementById('display-drive-name').innerText = `Pendrive ${currentDrive.size}GB`;
         document.getElementById('tk-pendrive').innerText = `${currentDrive.size} GB (Real: ${currentDrive.limit} GB)`;
         
-        // Reseta seleção anterior
         selectedGames = [];
-        
         showScreen('main-app-screen');
         loadCatalog();
         updateStorageMeter();
@@ -171,42 +191,58 @@ document.getElementById('btn-back-drives').addEventListener('click', () => {
 // CARREGAR CATÁLOGO E ATUALIZAR INTERFACE
 // ==========================================
 function loadCatalog() {
+    if (!isFirebaseConnected) {
+        // Catálogo fictício para testes locais caso o Firebase não esteja pronto
+        catalogGames = [
+            { id: "1", title: "GTA San Andreas", size: "4.3" },
+            { id: "2", title: "Resident Evil 4", size: "3.5" },
+            { id: "3", title: "God of War II", size: "7.9" },
+            { id: "4", title: "Need for Speed Underground 2", size: "2.1" },
+            { id: "5", title: "Bomba Patch 2026", size: "1.8" }
+        ];
+        renderCatalogUI();
+        return;
+    }
+
     const catalogRef = ref(database, 'catalog');
     onValue(catalogRef, (snapshot) => {
         const data = snapshot.val();
         catalogGames = [];
-        const catalogContainer = document.getElementById('catalog-list');
-        catalogContainer.innerHTML = '';
-
         if(data) {
             Object.keys(data).forEach(key => {
-                const game = { id: key, ...data[key] };
-                catalogGames.push(game);
-
-                // Constrói os cards do Catálogo de forma dinâmica
-                const item = document.createElement('div');
-                item.classList.add('catalog-item');
-                item.innerHTML = `
-                    <div class="game-info">
-                        <h4>${game.title}</h4>
-                        <span>${game.size} GB</span>
-                    </div>
-                    <input type="checkbox" class="chk-gamer" data-id="${game.id}" value="${game.size}">
-                `;
-                catalogContainer.appendChild(item);
+                catalogGames.push({ id: key, ...data[key] });
             });
-
-            // Adiciona evento aos novos Checkboxes criados
-            document.querySelectorAll('.chk-gamer').forEach(chk => {
-                chk.addEventListener('change', handleGameSelection);
-            });
-        } else {
-            catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo no catálogo.</p>';
         }
+        renderCatalogUI();
     });
 }
 
-// Manipula a seleção e deseleção de jogos
+function renderCatalogUI() {
+    const catalogContainer = document.getElementById('catalog-list');
+    catalogContainer.innerHTML = '';
+    
+    if (catalogGames.length > 0) {
+        catalogGames.forEach(game => {
+            const item = document.createElement('div');
+            item.classList.add('catalog-item');
+            item.innerHTML = `
+                <div class="game-info">
+                    <h4>${game.title}</h4>
+                    <span>${game.size} GB</span>
+                </div>
+                <input type="checkbox" class="chk-gamer" data-id="${game.id}" value="${game.size}">
+            `;
+            catalogContainer.appendChild(item);
+        });
+
+        document.querySelectorAll('.chk-gamer').forEach(chk => {
+            chk.addEventListener('change', handleGameSelection);
+        });
+    } else {
+        catalogContainer.innerHTML = '<p style="color: var(--text-muted)">Nenhum jogo no catálogo.</p>';
+    }
+}
+
 function handleGameSelection(e) {
     const gameId = e.target.dataset.id;
     const game = catalogGames.find(g => g.id === gameId);
@@ -221,12 +257,9 @@ function handleGameSelection(e) {
     renderTicketList();
 }
 
-// Atualização em Tempo Real da Barra de Armazenamento e Ativação do Botão
 function updateStorageMeter() {
     const totalSize = selectedGames.reduce((acc, game) => acc + parseFloat(game.size), 0);
     const limit = currentDrive.limit;
-    
-    // Calcula a porcentagem ocupada da barra
     const percentage = Math.min((totalSize / limit) * 100, 100);
     
     const progressBar = document.getElementById('progress-bar');
@@ -237,18 +270,12 @@ function updateStorageMeter() {
 
     const btnGenerate = document.getElementById('btn-generate-list');
 
-    // Validação de Regras de Negócio
     if (totalSize > limit) {
         progressBar.classList.add('exceeded');
         btnGenerate.disabled = true;
     } else {
         progressBar.classList.remove('exceeded');
-        // Valida se atingiu o mínimo de 5 jogos exigidos
-        if (selectedGames.length >= 5) {
-            btnGenerate.disabled = false;
-        } else {
-            btnGenerate.disabled = true;
-        }
+        btnGenerate.disabled = selectedGames.length < 5;
     }
 }
 
@@ -271,7 +298,7 @@ function renderTicketList() {
 }
 
 // ==========================================
-// GERAR IMAGEM JPEG (BASE64) E SALVAR NO FIREBASE
+// GERAR IMAGEM JPEG (BASE64) E SALVAR
 // ==========================================
 document.getElementById('btn-generate-list').addEventListener('click', () => {
     const ticketElement = document.getElementById('ticket-lista');
@@ -279,46 +306,55 @@ document.getElementById('btn-generate-list').addEventListener('click', () => {
     html2canvas(ticketElement, { backgroundColor: "#ffffff" }).then(canvas => {
         const base64Image = canvas.toDataURL('image/jpeg', 0.9);
 
-        // Salva o pedido com todos os dados do cliente e a imagem no banco Realtime Database
-        const ordersRef = ref(database, 'orders');
-        const newOrder = {
-            client: currentUserData,
-            driveSize: currentDrive.size,
-            imageB64: base64Image,
-            timestamp: Date.now()
-        };
+        if (isFirebaseConnected) {
+            const ordersRef = ref(database, 'orders');
+            const newOrder = {
+                client: currentUserData,
+                driveSize: currentDrive.size,
+                imageB64: base64Image,
+                timestamp: Date.now()
+            };
 
-        push(ordersRef, newOrder)
-            .then(() => {
-                alert("🎮 Lista processada e enviada com sucesso para produção!");
-                signOut(auth);
-            })
-            .catch(err => alert("Erro ao registrar pedido: " + err.message));
+            push(ordersRef, newOrder)
+                .then(() => {
+                    alert("🎮 Lista enviada com sucesso para produção!");
+                    showScreen('auth-screen');
+                })
+                .catch(err => alert("Erro ao registrar pedido: " + err.message));
+        } else {
+            alert("[MODO TESTE LOCAL]: Sucesso! Sua imagem Base64 foi gerada localmente. Insira os dados do Firebase para persistir.");
+            showScreen('auth-screen');
+        }
     });
 });
 
 // ==========================================
-// PAINEL DO ADMINISTRADOR (CADASTRO E PEDIDOS)
+// PAINEL DO ADMINISTRADOR (CADASTRO LOCAL/REMOTO)
 // ==========================================
 
-// Cadastrar novo jogo no Firebase
 document.getElementById('form-add-game').addEventListener('submit', (e) => {
     e.preventDefault();
     const title = document.getElementById('game-title').value;
     const size = document.getElementById('game-size').value;
 
-    const catalogRef = ref(database, 'catalog');
-    push(catalogRef, {
-        title: title,
-        size: parseFloat(size).toFixed(1)
-    }).then(() => {
-        alert("Jogo adicionado com sucesso!");
+    if (isFirebaseConnected) {
+        const catalogRef = ref(database, 'catalog');
+        push(catalogRef, {
+            title: title,
+            size: parseFloat(size).toFixed(1)
+        }).then(() => {
+            alert("Jogo adicionado ao Firebase!");
+            document.getElementById('form-add-game').reset();
+        });
+    } else {
+        alert(`[MODO TESTE LOCAL]: Jogo "${title}" (${size} GB) simulado com sucesso.`);
         document.getElementById('form-add-game').reset();
-    });
+    }
 });
 
-// Renderizar Pedidos com a Imagem gerada em Base64 para o Administrador
 function loadOrdersForAdmin() {
+    if (!isFirebaseConnected) return;
+
     const ordersRef = ref(database, 'orders');
     onValue(ordersRef, (snapshot) => {
         const container = document.getElementById('orders-container');
@@ -333,19 +369,17 @@ function loadOrdersForAdmin() {
                 box.innerHTML = `
                     <p><strong>Cliente:</strong> ${order.client.name} ${order.client.lastname}</p>
                     <p><strong>Contato:</strong> ${order.client.whatsapp} | <strong>Cidade:</strong> ${order.client.city}</p>
-                    <p><strong>Tamanho Solicitado:</strong> Pendrive de ${order.driveSize}GB</p>
-                    <p><strong>Imagem da Lista (Salva em Base64):</strong></p>
+                    <p><strong>Tamanho:</strong> Pendrive de ${order.driveSize}GB</p>
                     <img src="${order.imageB64}" alt="Lista do Pedido">
                 `;
                 container.appendChild(box);
             });
         } else {
-            container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido recebido até o momento.</p>';
+            container.innerHTML = '<p style="color: var(--text-muted)">Nenhum pedido recebido.</p>';
         }
     });
 }
 
-// Disparador para carregar os pedidos caso a tela seja a de Administração
 setInterval(() => {
     if (document.getElementById('admin-screen').classList.contains('active')) {
         loadOrdersForAdmin();
