@@ -69,56 +69,75 @@
                     <small>Espaço Real: 115,5 GB</small>
                 </button>
             </div>
-            <button id="logout-btn" class="btn-secundario">Sair</button>
+            <button id="logout-btn" class="btn-secundario">Sair da Conta</button>
         </div>
     </div>
 
     <div id="main-app-screen" class="screen">
         <header class="app-header">
             <div class="logo">GAMELIST <span>PRO</span></div>
-            <div id="user-welcome" class="user-badge"></div>
+            <div class="header-controls">
+                <div id="user-welcome" class="user-badge"></div>
+                <button id="btn-nav-montador" class="btn-nav active">Montar Pendrive</button>
+                <button id="btn-nav-pedidos" class="btn-nav">Meus Pedidos</button>
+                <button id="app-logout-btn" class="btn-secundario-header">Sair</button>
+            </div>
         </header>
 
-        <div class="app-grid">
-            <div class="left-panel">
-                <div class="storage-box">
-                    <div class="vector-drive">
-                        <svg viewBox="0 0 24 24" class="svg-drive">
-                            <path d="M6 2h12v4H6V2zm0 4h12v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6zm3 3v2h2V9H9zm4 0v2h2V9h-2z"/>
-                        </svg>
-                        <div>
-                            <h3 id="display-drive-name">Pendrive GB</h3>
-                            <span id="storage-text">0.00 / 0.00 GB</span>
+        <div id="sub-section-montador" class="app-content-section active">
+            <div class="app-grid wide-layout">
+                <div class="left-panel">
+                    <div class="storage-box">
+                        <div class="vector-drive">
+                            <svg viewBox="0 0 24 24" class="svg-drive">
+                                <path d="M6 2h12v4H6V2zm0 4h12v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6zm3 3v2h2V9H9zm4 0v2h2V9h-2z"/>
+                            </svg>
+                            <div>
+                                <h3 id="display-drive-name">Pendrive GB</h3>
+                                <span id="storage-text">0.00 / 0.00 GB</span>
+                            </div>
                         </div>
+                        
+                        <div class="progress-container">
+                            <div id="progress-bar" class="progress-bar"></div>
+                        </div>
+                        <span id="game-counter" class="counter-text">Jogos selecionados: 0 (Mínimo 5)</span>
                     </div>
-                    
-                    <div class="progress-container">
-                        <div id="progress-bar" class="progress-bar"></div>
+
+                    <div id="ticket-lista" class="ticket-container wide-ticket">
+                        <div class="ticket-header">
+                            <h4>GAMELIST PRO - CONFIRMAÇÃO DO PEDIDO</h4>
+                            <div class="ticket-client-info">
+                                <p><strong>Cliente:</strong> <span id="tk-nome"></span> <span id="tk-sobrenome"></span></p>
+                                <p><strong>WhatsApp:</strong> <span id="tk-whatsapp"></span></p>
+                                <p><strong>Cidade:</strong> <span id="tk-cidade"></span></p>
+                                <p><strong>Pendrive Escolhido:</strong> <span id="tk-pendrive"></span></p>
+                            </div>
+                        </div>
+                        <ul id="selected-games-list" class="games-list-vazia">
+                            </ul>
                     </div>
-                    <span id="game-counter" class="counter-text">Jogos selecionados: 0 (Mínimo 5)</span>
+
+                    <div class="action-footer-buttons">
+                        <button id="btn-generate-list" class="btn-neon" disabled>Enviar Lista de Jogos</button>
+                        <button id="btn-back-drives" class="btn-secundario no-margin">Mudar Pendrive</button>
+                    </div>
                 </div>
 
-                <div id="ticket-lista" class="ticket-container">
-                    <div class="ticket-header">
-                        <h4>GAMELIST PRO - PEDIDO</h4>
-                        <div class="ticket-client-info">
-                            <p><strong>Cliente:</strong> <span id="tk-nome"></span> <span id="tk-sobrenome"></span></p>
-                            <p><strong>WhatsApp:</strong> <span id="tk-whatsapp"></span></p>
-                            <p><strong>Cidade:</strong> <span id="tk-cidade"></span></p>
-                            <p><strong>Pendrive Escolhido:</strong> <span id="tk-pendrive"></span></p>
+                <div class="right-panel">
+                    <h2>Catálogo de Jogos Disponíveis</h2>
+                    <p class="section-desc">Selecione os jogos desejados observando o limite do seu pendrive ao lado.</p>
+                    <div id="catalog-list" class="catalog-grid wide-catalog">
                         </div>
-                    </div>
-                    <ul id="selected-games-list" class="games-list-vazia">
-                        </ul>
                 </div>
-
-                <button id="btn-generate-list" class="btn-neon" disabled>Gerar Lista de Jogos</button>
-                <button id="btn-back-drives" class="btn-secundario">Mudar Pendrive</button>
             </div>
+        </div>
 
-            <div class="right-panel">
-                <h2>Catálogo de Jogos Disponíveis</h2>
-                <div id="catalog-list" class="catalog-grid">
+        <div id="sub-section-pedidos" class="app-content-section">
+            <div class="central-container-wide">
+                <h2>Gerenciar Meus Pedidos</h2>
+                <p>Confira abaixo o andamento de suas solicitações. Você pode remover pedidos antigos ou criar novos acervos.</p>
+                <div id="client-orders-history-list" class="client-orders-grid">
                     </div>
             </div>
         </div>
@@ -130,7 +149,7 @@
             <button id="admin-logout-btn" class="btn-secundario">Sair do Painel</button>
         </header>
         
-        <div class="admin-grid">
+        <div class="admin-grid wide-layout">
             <div class="admin-col-left">
                 <div class="admin-card">
                     <h3>Cadastrar Jogo Individual</h3>
@@ -181,7 +200,7 @@
                 </div>
 
                 <div class="admin-card space-top">
-                    <h3>Pedidos Recebidos (Listas em JPEG)</h3>
+                    <h3>Pedidos Globais Recebidos</h3>
                     <div id="orders-container" class="orders-list">
                         </div>
                 </div>
