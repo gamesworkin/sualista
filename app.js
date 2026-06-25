@@ -5,13 +5,13 @@ import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/fi
 
 // COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
 const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_AUTH_DOMAIN",
-    databaseURL: "SUA_DATABASE_URL",
-    projectId: "SEU_PROJECT_ID",
-    storageBucket: "SEU_STORAGE_BUCKET",
-    messagingSenderId: "SEU_MESSAGING_SENDER_ID",
-    appId: "SEU_APP_ID"
+    apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
+    authDomain: "sua-lista-e6ef3.firebaseapp.com",
+    databaseURL: "https://sua-lista-e6ef3-default-rtdb.firebaseio.com/",
+    projectId: "sua-lista-e6ef3",
+    storageBucket: "sua-lista-e6ef3.firebasestorage.app",
+    messagingSenderId: "689656568290",
+    appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
 };
 
 // Inicializações seguras do Firebase
