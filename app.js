@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
 
-// Estado do Aplicativo de Usuário Atual
+// Estado do Aplicativo de Usuário Atual 
 let currentUserData = null;
 let currentDrive = { size: 0, limit: 0 };
 let catalogGames = [];
