@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GameList Pro - Montador de Pendrives</title>
+    <link rel="icon" type="image/x-icon" href="fav.ico">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -20,44 +21,84 @@
             </div>
 
             <form id="form-user-login" class="auth-form active">
-                <div class="input-group">
-                    <input type="text" id="login-username" placeholder="Seu Username de Usuário" required>
+                <div class="form-field">
+                    <label for="login-username">Username</label>
+                    <div class="input-group">
+                        <input type="text" id="login-username" placeholder="Digite seu username" required>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <input type="password" id="login-master-password" placeholder="Senha Master do Sistema" required>
+                <div class="form-field">
+                    <label for="login-master-password">Senha Master</label>
+                    <div class="input-group">
+                        <input type="password" id="login-master-password" placeholder="Digite a senha master" required>
+                    </div>
                 </div>
                 <button type="submit" id="btn-submit-user-login" class="btn-neon">Entrar no Sistema</button>
                 <p class="auth-toggle-text">Ainda não tem uma conta? <span id="link-go-to-register">Cadastre-se aqui</span></p>
             </form>
 
             <form id="form-user-register" class="auth-form" style="display: none;">
-                <div class="input-group">
-                    <input type="text" id="reg-username" placeholder="Escolha um Username Único" required>
+                <div class="form-field">
+                    <label for="reg-username">Username Único</label>
+                    <div class="input-group">
+                        <input type="text" id="reg-username" placeholder="Exemplo: jorginho_games" required>
+                    </div>
                 </div>
-                <div class="input-group row">
-                    <input type="text" id="reg-name" placeholder="Nome" required>
-                    <input type="text" id="reg-lastname" placeholder="Sobrenome" required>
+                
+                <div class="form-field">
+                    <label for="reg-name">Nome</label>
+                    <div class="input-group">
+                        <input type="text" id="reg-name" placeholder="Digite seu primeiro nome" required>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (com DDD)" required>
+
+                <div class="form-field">
+                    <label for="reg-lastname">Sobrenome</label>
+                    <div class="input-group">
+                        <input type="text" id="reg-lastname" placeholder="Digite seu sobrenome" required>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <input type="text" id="reg-city" placeholder="Cidade" required>
+
+                <div class="form-field">
+                    <label for="reg-whatsapp">WhatsApp</label>
+                    <div class="input-group">
+                        <input type="tel" id="reg-whatsapp" placeholder="Exemplo: 11999999999" required>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <input type="password" id="reg-master-password" placeholder="Digite a Senha Master para Validar" required>
+
+                <div class="form-field">
+                    <label for="reg-city">Cidade / Região</label>
+                    <div class="input-group">
+                        <input type="text" id="reg-city" placeholder="Digite sua cidade" required>
+                    </div>
                 </div>
+
+                <div class="form-field">
+                    <label for="reg-master-password">Senha Master de Validação</label>
+                    <div class="input-group">
+                        <input type="password" id="reg-master-password" placeholder="Digite a senha master corporativa" required>
+                    </div>
+                </div>
+
                 <button type="submit" id="btn-submit-user-register" class="btn-neon">Criar Minha Conta</button>
                 <p class="auth-toggle-text">Já possui uma conta ativa? <span id="link-go-to-login">Faça Login</span></p>
             </form>
 
             <form id="form-admin" class="auth-form" style="display: none;">
-                <div class="input-group">
-                    <input type="email" id="admin-email" placeholder="E-mail do Administrador">
+                <div class="form-field">
+                    <label for="admin-email">E-mail do Administrador</label>
+                    <div class="input-group">
+                        <input type="email" id="admin-email" placeholder="admin@sistema.com" required>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <input type="password" id="admin-password" placeholder="Senha de Acesso">
+                
+                <div class="form-field">
+                    <label for="admin-password">Senha de Acesso</label>
+                    <div class="input-group">
+                        <input type="password" id="admin-password" placeholder="••••••••" required>
+                    </div>
                 </div>
+                
                 <button type="submit" id="btn-submit-admin" class="btn-neon admin-color">Acessar Painel</button>
             </form>
         </div>
@@ -172,11 +213,17 @@
                 <div class="admin-card">
                     <h3>Cadastrar Jogo Individual</h3>
                     <form id="form-add-game">
-                        <div class="input-group">
-                            <input type="text" id="game-title" placeholder="Nome do Jogo" required>
+                        <div class="form-field">
+                            <label for="game-title">Nome do Jogo</label>
+                            <div class="input-group">
+                                <input type="text" id="game-title" placeholder="Nome do Jogo" required>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <input type="number" step="0.01" id="game-size" placeholder="Tamanho em GB (ex: 4.3)" required>
+                        <div class="form-field">
+                            <label for="game-size">Tamanho em Gigabytes</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" id="game-size" placeholder="Tamanho em GB (ex: 4.3)" required>
+                            </div>
                         </div>
                         <button type="submit" class="btn-neon admin-color">Adicionar Jogo</button>
                     </form>
@@ -187,8 +234,11 @@
                     <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
                         Gerencie em lote utilizando estrutura de dados em formato JSON.
                     </p>
-                    <div class="input-group">
-                        <textarea id="json-import-textarea" placeholder='[&#10;  {"title": "Jogo 1", "size": 4.5},&#10;  {"title": "Jogo 2", "size": 8.2}&#10;]'></textarea>
+                    <div class="form-field">
+                        <label for="json-import-textarea">Código de Estrutura JSON</label>
+                        <div class="input-group">
+                            <textarea id="json-import-textarea" placeholder='[&#10;  {"title": "Jogo 1", "size": 4.5},&#10;  {"title": "Jogo 2", "size": 8.2}&#10;]'></textarea>
+                        </div>
                     </div>
                     <div class="admin-row-buttons">
                         <button type="button" id="btn-import-json" class="btn-neon admin-color">Importar JSON</button>
@@ -199,11 +249,23 @@
                 <div class="admin-card space-top">
                     <h3>Senha Master do Cliente</h3>
                     <form id="form-update-master">
-                        <div class="input-group">
-                            <input type="text" id="admin-master-input" placeholder="Nova Senha Master" required>
+                        <div class="form-field">
+                            <label for="admin-master-input">Nova Senha Master Operacional</label>
+                            <div class="input-group">
+                                <input type="text" id="admin-master-input" placeholder="Nova Senha Master" required>
+                            </div>
                         </div>
                         <button type="submit" id="btn-update-master" class="btn-neon admin-color">Atualizar Senha</button>
                     </form>
+                </div>
+
+                <div class="admin-card space-top">
+                    <h3>Gerenciar Usuários Cadastrados</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+                        Monitore ou remova contas indesejadas criadas na base de dados.
+                    </p>
+                    <div id="admin-users-manage-list" class="admin-manage-list">
+                        </div>
                 </div>
             </div>
 
