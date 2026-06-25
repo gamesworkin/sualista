@@ -1,4 +1,4 @@
-/* Custom Properties para Fácil Alteração */ 
+/* Custom Properties para Fácil Alteração */
 :root {
     --bg-darkest: #0a0a0c;
     --bg-card: #141419;
@@ -141,11 +141,25 @@ h1, h2, h3, h4, .btn-neon, .logo {
     box-shadow: 0 0 20px var(--neon-green);
 }
 
+/* Novo estado de bloqueio visual */
 .btn-neon:disabled {
-    color: #444;
-    border-color: #333;
-    box-shadow: none;
+    color: #555 !important;
+    border-color: #2c2c35 !important;
+    background: #181820 !important;
+    box-shadow: none !important;
     cursor: not-allowed;
+    opacity: 0.8;
+}
+
+/* Estado de loading pulsante */
+.btn-neon.loading {
+    animation: pulseLoading 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseLoading {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
 }
 
 .btn-neon.admin-color {
@@ -153,7 +167,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
     border-color: #00e5ff;
     box-shadow: 0 0 10px rgba(0,229,255,0.4);
 }
-.btn-neon.admin-color:hover {
+.btn-neon.admin-color:hover:not(:disabled) {
     background: #00e5ff;
     color: black;
 }
@@ -429,7 +443,7 @@ h1, h2, h3, h4, .btn-neon, .logo {
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-darkest); }
 ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--neon-green); }
