@@ -5,16 +5,16 @@ import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/fi
 
 // COLE SUAS CONFIGURAÇÕES DO FIREBASE AQUI
 const firebaseConfig = {
-    apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
-    authDomain: "sua-lista-e6ef3.firebaseapp.com",
-    databaseURL: "https://sua-lista-e6ef3-default-rtdb.firebaseio.com/",
-    projectId: "sua-lista-e6ef3",
-    storageBucket: "sua-lista-e6ef3.firebasestorage.app",
-    messagingSenderId: "689656568290",
-    appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
+    apiKey: "SUA_API_KEY",
+    authDomain: "SEU_AUTH_DOMAIN",
+    databaseURL: "SUA_DATABASE_URL",
+    projectId: "SEU_PROJECT_ID",
+    storageBucket: "SEU_STORAGE_BUCKET",
+    messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+    appId: "SEU_APP_ID"
 };
 
-// Inicializações seguras do Firebase (Protegido contra travamento sem credenciais)
+// Inicializações seguras do Firebase
 let app, auth, database;
 let isFirebaseConnected = false;
 
@@ -32,15 +32,30 @@ try {
     console.error("Erro ao tentar ler o Firebase:", error);
 }
 
-// Estado do Aplicativo de Usuário Atual
+// Variavel em memória para armazenar a Senha Master sincronizada do Banco de Dados
+let systemMasterPassword = "admin"; // Senha padrão caso o banco esteja desligado
+
+// Sincroniza a Senha Master do banco em tempo real se o Firebase estiver conectado
+if (isFirebaseConnected) {
+    const masterPasswordRef = ref(database, 'settings/masterPassword');
+    onValue(masterPasswordRef, (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+            systemMasterPassword = val;
+            // Preenche automaticamente o campo no painel do administrador se ele estiver aberto
+            const adminMasterInput = document.getElementById('admin-master-input');
+            if(adminMasterInput) adminMasterInput.value = val;
+        }
+    });
+}
+
+// Estado Geral do Aplicativo
 let currentUserData = null;
 let currentDrive = { size: 0, limit: 0 };
 let catalogGames = [];
 let selectedGames = [];
 
-// ==========================================
-// CONTROLE DE TELAS E ABAS
-// ==========================================
+// Elementos DOM de Controle de Acesso
 const tabUser = document.getElementById('tab-user');
 const tabAdmin = document.getElementById('tab-admin');
 const formUser = document.getElementById('form-user');
@@ -49,6 +64,7 @@ const formAdmin = document.getElementById('form-admin');
 const btnSubmitUser = document.getElementById('btn-submit-user');
 const btnSubmitAdmin = document.getElementById('btn-submit-admin');
 
+// Troca de Abas Corrigida e Reativa
 tabUser.addEventListener('click', (e) => {
     e.preventDefault();
     tabUser.classList.add('active');
@@ -86,7 +102,6 @@ function showScreen(screenId) {
     document.getElementById(screenId).classList.add('active');
 }
 
-// Funções Auxiliares de Feedback Visual nos Botões
 function setButtonLoadingState(button) {
     button.disabled = true;
     button.classList.add('loading');
@@ -100,21 +115,27 @@ function resetButtonState(button, originalText) {
 }
 
 // ==========================================
-// FLUXO DE AUTENTICAÇÃO (COM SUPORTE A ENTER NATÍVO)
+// FLUXO DE LOGIN: CLIENTE (SENHA MASTER NO REALTIME)
 // ==========================================
-
 formUser.addEventListener('submit', (e) => {
     e.preventDefault();
     
-    const masterPass = document.getElementById('master-password').value;
+    const masterPassInput = document.getElementById('master-password').value;
     const name = document.getElementById('user-name').value;
     const lastname = document.getElementById('user-lastname').value;
     const whatsapp = document.getElementById('user-whatsapp').value;
     const city = document.getElementById('user-city').value;
 
-    // Ativa animação e bloqueio de cliques
     setButtonLoadingState(btnSubmitUser);
-    
+
+    // Validação da Senha Master resgatada do banco de dados (ou do fallback "admin")
+    if (masterPassInput !== systemMasterPassword) {
+        alert("❌ Senha Master incorreta ou inválida! Solicite a senha correta.");
+        resetButtonState(btnSubmitUser, "Entrar no Sistema");
+        return;
+    }
+
+    // Sucesso na Autenticação da Senha Master
     currentUserData = { name, lastname, whatsapp, city, role: 'user' };
 
     document.getElementById('tk-nome').innerText = currentUserData.name;
@@ -122,33 +143,21 @@ formUser.addEventListener('submit', (e) => {
     document.getElementById('tk-whatsapp').innerText = currentUserData.whatsapp;
     document.getElementById('tk-cidade').innerText = currentUserData.city;
 
-    if (isFirebaseConnected) {
-        signInWithEmailAndPassword(auth, "master@gamelist.com", masterPass)
-            .then(() => {
-                showScreen('drive-selection-screen');
-                formUser.reset();
-                resetButtonState(btnSubmitUser, "Entrar no Sistema");
-            })
-            .catch(err => {
-                alert("Senha Master Inválida! Erro: " + err.message);
-                resetButtonState(btnSubmitUser, "Entrar no Sistema");
-            });
-    } else {
-        // Simulação com timeout para você enxergar o efeito visual "ENTRANDO..."
-        setTimeout(() => {
-            alert("[MODO TESTE LOCAL]: Acesso concedido sem Firebase.");
-            showScreen('drive-selection-screen');
-            resetButtonState(btnSubmitUser, "Entrar no Sistema");
-        }, 1200);
-    }
+    setTimeout(() => {
+        showScreen('drive-selection-screen');
+        formUser.reset();
+        resetButtonState(btnSubmitUser, "Entrar no Sistema");
+    }, 800);
 });
 
+// ==========================================
+// FLUXO DE LOGIN: ADMINISTRADOR (FIREBASE AUTH)
+// ==========================================
 formAdmin.addEventListener('submit', (e) => {
     e.preventDefault();
     const email = document.getElementById('admin-email').value;
     const pass = document.getElementById('admin-password').value;
 
-    // Ativa animação e bloqueio de cliques
     setButtonLoadingState(btnSubmitAdmin);
 
     if (isFirebaseConnected) {
@@ -164,52 +173,80 @@ formAdmin.addEventListener('submit', (e) => {
                 resetButtonState(btnSubmitAdmin, "Acessar Painel");
             });
     } else {
-        // Simulação com timeout para você enxergar o efeito visual "ENTRANDO..."
         setTimeout(() => {
             alert("[MODO TESTE LOCAL]: Painel Admin aberto sem Firebase.");
             currentUserData = { role: 'admin' };
             showScreen('admin-screen');
             resetButtonState(btnSubmitAdmin, "Acessar Painel");
-        }, 1200);
+        }, 800);
     }
 });
 
-// Executa limpeza geral da memória local ao deslogar
+// ==========================================
+// CONTROLE DE LOGOUT E LIMPEZA TOTAL DE MEMÓRIA
+// ==========================================
 function processClearLogout() {
     if (isFirebaseConnected) signOut(auth);
     
-    // Reseta estados na memória do script
     currentUserData = null;
     currentDrive = { size: 0, limit: 0 };
     selectedGames = [];
     catalogGames = [];
     
-    // Limpa de forma absoluta cookies, session e localstorage locais do navegador
     localStorage.clear();
     sessionStorage.clear();
     
-    // Reseta todos os formulários visualmente
     formUser.reset();
     formAdmin.reset();
     
-    // Garante que os botões voltam ao estado padrão original
     resetButtonState(btnSubmitUser, "Entrar no Sistema");
     resetButtonState(btnSubmitAdmin, "Acessar Painel");
     
     showScreen('auth-screen');
 }
 
-// Botões de Desconexão (Sair)
 document.getElementById('logout-btn').addEventListener('click', processClearLogout);
 document.getElementById('admin-logout-btn').addEventListener('click', processClearLogout);
 
 if (isFirebaseConnected) {
     onAuthStateChanged(auth, (user) => {
-        if (!user) {
+        if (!user && currentUserData?.role === 'admin') {
             processClearLogout();
         }
     });
 }
+
+// ==========================================
+// ALTERAR SENHA MASTER (DENTRO DO PAINEL ADMIN)
+// ==========================================
+document.getElementById('form-update-master').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const newMasterValue = document.getElementById('admin-master-input').value;
+    const btnUpdateMaster = document.getElementById('btn-update-master');
+
+    btnUpdateMaster.disabled = true;
+    btnUpdateMaster.innerText = "ATUALIZANDO...";
+
+    if (isFirebaseConnected) {
+        const masterPasswordRef = ref(database, 'settings/masterPassword');
+        set(masterPasswordRef, newMasterValue)
+            .then(() => {
+                alert("🔒 Senha Master atualizada com sucesso no banco de dados!");
+                btnUpdateMaster.disabled = false;
+                btnUpdateMaster.innerText = "Atualizar Senha";
+            })
+            .catch(err => {
+                alert("Erro ao salvar nova senha: " + err.message);
+                btnUpdateMaster.disabled = false;
+                btnUpdateMaster.innerText = "Atualizar Senha";
+            });
+    } else {
+        systemMasterPassword = newMasterValue;
+        alert(`[MODO TESTE LOCAL]: Senha Master alterada localmente para: ${newMasterValue}`);
+        btnUpdateMaster.disabled = false;
+        btnUpdateMaster.innerText = "Atualizar Senha";
+    }
+});
 
 // ==========================================
 // SELEÇÃO DO PENDRIVE
@@ -374,9 +411,8 @@ document.getElementById('btn-generate-list').addEventListener('click', () => {
 });
 
 // ==========================================
-// PAINEL DO ADMINISTRADOR (CADASTRO)
+// PAINEL DO ADMINISTRADOR (CADASTRO DE JOGOS)
 // ==========================================
-
 document.getElementById('form-add-game').addEventListener('submit', (e) => {
     e.preventDefault();
     const title = document.getElementById('game-title').value;
