@@ -51,12 +51,12 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .glitch-text span { color: var(--neon-green); }
 
 .auth-container {
-    max-width: 480px;
-    margin: 60px auto;
+    max-width: 520px;
+    margin: 40px auto;
     background: var(--bg-card);
     border: 2px solid var(--border-color);
     border-radius: 14px;
-    padding: 45px 35px;
+    padding: 40px 35px;
     box-shadow: 0 15px 40px rgba(0,0,0,0.8);
 }
 
@@ -80,7 +80,23 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .tab-btn.active { color: var(--neon-green); border-bottom: 2px solid var(--neon-green); }
 
 .auth-form { display: none; }
-.auth-form.active { display: flex; flex-direction: column; gap: 18px; }
+.auth-form.active { display: flex; flex-direction: column; gap: 22px; }
+
+/* Estrutura Vertical de Campos de Formulários com Rótulo Ativo */
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+.form-field label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding-left: 2px;
+}
 
 .auth-toggle-text {
     font-size: 15px;
@@ -95,16 +111,19 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
     font-weight: bold;
 }
 
-/* Inputs e Textareas */
+/* Inputs e Textareas Grandes e Robustos */
+.input-group {
+    width: 100%;
+}
 .input-group input, .input-group textarea {
     width: 100%;
-    padding: 14px 18px;
+    padding: 16px 18px;
     background: #08080c;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: white;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 17px;
+    font-size: 18px;
     transition: 0.3s;
 }
 .input-group textarea {
@@ -118,8 +137,6 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
     border-color: var(--neon-green);
     box-shadow: 0 0 10px var(--neon-green-glow);
 }
-
-.row { display: flex; gap: 12px; }
 
 /* Subseções */
 .app-content-section { display: none; }
@@ -147,7 +164,7 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
     background: transparent;
     color: var(--neon-green);
     border: 2px solid var(--neon-green);
-    padding: 16px;
+    padding: 18px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
@@ -243,24 +260,22 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .progress-bar.exceeded { background: var(--neon-red); box-shadow: 0 0 12px var(--neon-red); }
 .counter-text { font-size: 15px; color: var(--text-muted); }
 
-/* ENGENHARIA DO TICKET COLOÇAL E IMPRESSÃO INALTERÁVEL */
+/* Ticket anti-esmagamento */
 .ticket-scroll-wrapper {
     width: 100%;
-    overflow-x: auto; /* Permite rolagem no mobile de forma elegante sem amassar o ticket */
+    overflow-x: auto;
     background: #08080c;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     margin-bottom: 30px;
     padding: 10px;
 }
-
-/* Largura travada: impede esmagamento em celulares verticais */
 .ticket-container.fixed-print-ticket { 
     background: #ffffff; 
     color: #000000; 
     padding: 35px; 
     border-radius: 4px; 
-    width: 650px; /* Alvo fixo de renderização */
+    width: 650px; 
     min-width: 650px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
@@ -283,7 +298,6 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
     padding-right: 10px;
 }
 
-/* Item de catálogo esticado e largo */
 .catalog-item { 
     display: flex; 
     justify-content: space-between; 
@@ -303,9 +317,9 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .chk-gamer:checked { border-color: var(--neon-green); background: rgba(0, 255, 102, 0.2); }
 .chk-gamer:checked::after { content: "✓"; position: absolute; color: var(--neon-green); font-weight: bold; font-size: 20px; top: -2px; left: 5px; }
 
-/* ADMIN CARD */
+/* Admin Area Grid */
 .admin-grid.wide-layout { display: grid; grid-template-columns: 1fr 1.6fr; gap: 40px; max-width: var(--max-width-desktop); margin: 40px auto; padding: 0 30px; }
-.admin-col-left, .admin-col-right { display: flex; flex-direction: column; }
+.admin-col-left, .admin-col-right { display: flex; flex-direction: column; gap: 25px; }
 .admin-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
 .admin-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 30px; border-radius: 16px; }
 .admin-row-buttons { display: flex; gap: 14px; margin-top: 5px; }
@@ -316,7 +330,15 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .btn-delete-game { background: transparent; border: none; cursor: pointer; font-size: 18px; padding: 4px 8px; }
 .btn-delete-game:hover { background: rgba(255,51,51,0.2); border-radius: 6px; }
 
-/* HISTÓRICO "MEUS PEDIDOS" */
+/* Histórico de Pedidos Globais no Admin */
+.orders-list { display: flex; flex-direction: column; gap: 20px; }
+.order-box { background: #08080c; border: 1px solid var(--border-color); border-left: 4px solid #00e5ff; padding: 25px; border-radius: 10px; }
+.order-box-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px dashed var(--border-color); padding-bottom: 12px; }
+.order-box-details p { font-size: 17px; line-height: 1.5; color: white; }
+.order-box img { max-width: 450px; display: block; margin-top: 15px; border: 1px solid #444; border-radius: 6px; }
+.space-top { margin-top: 0; } /* Ajustado para alinhar com o gap */
+
+/* Histórico do Cliente "Meus Pedidos" */
 .central-container-wide { max-width: var(--max-width-desktop); margin: 40px auto; padding: 0 30px; }
 .central-container-wide p { color: var(--text-muted); margin-bottom: 30px; }
 .client-orders-grid { display: flex; flex-direction: column; gap: 25px; }
@@ -326,15 +348,11 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
 .client-order-body { display: flex; gap: 40px; align-items: center; flex-wrap: wrap; }
 .client-order-body img { max-width: 450px; border: 1px solid #444; border-radius: 6px; }
 
-.order-box { background: #08080c; border: 1px solid var(--border-color); border-left: 4px solid #00e5ff; padding: 25px; border-radius: 10px; }
-.order-box img { max-width: 450px; display: block; margin-top: 15px; border: 1px solid #444; border-radius: 6px; }
-.space-top { margin-top: 25px; }
-
 /* 📱 REGRAS DE ULTRA RESPONSIVIDADE E ARRANJO ORGANIZADO MOBILE */
 @media (max-width: 1024px) {
     .screen { padding: 15px; }
     .app-grid.wide-layout, .admin-grid.wide-layout {
-        grid-template-columns: 1fr; /* Separa tudo em linhas verticais organizadas */
+        grid-template-columns: 1fr;
         gap: 35px;
         padding: 0 10px;
     }
@@ -366,7 +384,9 @@ h1, h2, h3, h4, .btn-neon, .logo, .btn-nav {
     .client-order-body img, .order-box img { max-width: 100%; }
     .client-order-body { gap: 20px; }
     
-    .admin-row-buttons, .row { flex-direction: column; gap: 15px; }
+    .admin-row-buttons { flex-direction: column; gap: 15px; }
+    .order-box-header { flex-direction: column; gap: 15px; align-items: flex-start; }
+    .order-box-header .btn-danger-action { width: 100%; text-align: center; padding: 12px; }
 }
 
 /* Custom Scrollbar */
