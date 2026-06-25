@@ -14,34 +14,49 @@
         <div class="auth-container">
             <h1 class="glitch-text">GAMELIST <span>PRO</span></h1>
             
-            <div class="tabs">
+            <div class="tabs" id="auth-tabs-container">
                 <button id="tab-user" type="button" class="tab-btn active">Acesso Cliente</button>
                 <button id="tab-admin" type="button" class="tab-btn">Painel Admin</button>
             </div>
 
-            <form id="form-user" class="auth-form active">
+            <form id="form-user-login" class="auth-form active">
                 <div class="input-group">
-                    <input type="password" id="master-password" placeholder="Senha Master" required>
+                    <input type="text" id="login-username" placeholder="Seu Username de Usuário" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="login-master-password" placeholder="Senha Master do Sistema" required>
+                </div>
+                <button type="submit" id="btn-submit-user-login" class="btn-neon">Entrar no Sistema</button>
+                <p class="auth-toggle-text">Ainda não tem uma conta? <span id="link-go-to-register">Cadastre-se aqui</span></p>
+            </form>
+
+            <form id="form-user-register" class="auth-form" style="display: none;">
+                <div class="input-group">
+                    <input type="text" id="reg-username" placeholder="Escolha um Username Único" required>
                 </div>
                 <div class="input-group row">
-                    <input type="text" id="user-name" placeholder="Nome" required>
-                    <input type="text" id="user-lastname" placeholder="Sobrenome" required>
+                    <input type="text" id="reg-name" placeholder="Nome" required>
+                    <input type="text" id="reg-lastname" placeholder="Sobrenome" required>
                 </div>
                 <div class="input-group">
-                    <input type="tel" id="user-whatsapp" placeholder="WhatsApp (com DDD)" required>
+                    <input type="tel" id="reg-whatsapp" placeholder="WhatsApp (com DDD)" required>
                 </div>
                 <div class="input-group">
-                    <input type="text" id="user-city" placeholder="Cidade" required>
+                    <input type="text" id="reg-city" placeholder="Cidade" required>
                 </div>
-                <button type="submit" id="btn-submit-user" class="btn-neon">Entrar no Sistema</button>
+                <div class="input-group">
+                    <input type="password" id="reg-master-password" placeholder="Digite a Senha Master para Validar" required>
+                </div>
+                <button type="submit" id="btn-submit-user-register" class="btn-neon">Criar Minha Conta</button>
+                <p class="auth-toggle-text">Já possui uma conta ativa? <span id="link-go-to-login">Faça Login</span></p>
             </form>
 
             <form id="form-admin" class="auth-form" style="display: none;">
                 <div class="input-group">
-                    <input type="email" id="admin-email" placeholder="E-mail Admin">
+                    <input type="email" id="admin-email" placeholder="E-mail do Administrador">
                 </div>
                 <div class="input-group">
-                    <input type="password" id="admin-password" placeholder="Senha">
+                    <input type="password" id="admin-password" placeholder="Senha de Acesso">
                 </div>
                 <button type="submit" id="btn-submit-admin" class="btn-neon admin-color">Acessar Painel</button>
             </form>
@@ -51,7 +66,7 @@
     <div id="drive-selection-screen" class="screen">
         <div class="central-container">
             <h2>Selecione o Tamanho do seu Pendrive</h2>
-            <p>Cada tamanho possui um limite real de armazenamento calculado pelo sistema.</p>
+            <p>Cada tamanho possui um limite real de armazenamento calculado de forma automatizada.</p>
             <div class="drive-options">
                 <button class="drive-card" data-size="32" data-limit="28.7">
                     <span class="drive-icon">💾</span>
@@ -104,29 +119,32 @@
                         <span id="game-counter" class="counter-text">Jogos selecionados: 0 (Mínimo 5)</span>
                     </div>
 
-                    <div id="ticket-lista" class="ticket-container wide-ticket">
-                        <div class="ticket-header">
-                            <h4>GAMELIST PRO - CONFIRMAÇÃO DO PEDIDO</h4>
-                            <div class="ticket-client-info">
-                                <p><strong>Cliente:</strong> <span id="tk-nome"></span> <span id="tk-sobrenome"></span></p>
-                                <p><strong>WhatsApp:</strong> <span id="tk-whatsapp"></span></p>
-                                <p><strong>Cidade:</strong> <span id="tk-cidade"></span></p>
-                                <p><strong>Pendrive Escolhido:</strong> <span id="tk-pendrive"></span></p>
+                    <div class="ticket-scroll-wrapper">
+                        <div id="ticket-lista" class="ticket-container fixed-print-ticket">
+                            <div class="ticket-header">
+                                <h4>GAMELIST PRO - DOCUMENTO DE CONFIRMAÇÃO</h4>
+                                <div class="ticket-client-info">
+                                    <p><strong>Username do Cliente:</strong> <span id="tk-username"></span></p>
+                                    <p><strong>Nome Completo:</strong> <span id="tk-nome"></span> <span id="tk-sobrenome"></span></p>
+                                    <p><strong>WhatsApp corporativo:</strong> <span id="tk-whatsapp"></span></p>
+                                    <p><strong>Cidade / Região:</strong> <span id="tk-cidade"></span></p>
+                                    <p><strong>Mídia Escolhida:</strong> <span id="tk-pendrive"></span></p>
+                                </div>
                             </div>
+                            <ul id="selected-games-list" class="games-list-vazia">
+                                </ul>
                         </div>
-                        <ul id="selected-games-list" class="games-list-vazia">
-                            </ul>
                     </div>
 
                     <div class="action-footer-buttons">
                         <button id="btn-generate-list" class="btn-neon" disabled>Enviar Lista de Jogos</button>
-                        <button id="btn-back-drives" class="btn-secundario no-margin">Mudar Pendrive</button>
+                        <button id="btn-back-drives" class="btn-secundario no-margin">Mudar Tamanho do Pendrive</button>
                     </div>
                 </div>
 
                 <div class="right-panel">
                     <h2>Catálogo de Jogos Disponíveis</h2>
-                    <p class="section-desc">Selecione os jogos desejados observando o limite do seu pendrive ao lado.</p>
+                    <p class="section-desc">Escolha os títulos respeitando o limite volumétrico da barra de armazenamento.</p>
                     <div id="catalog-list" class="catalog-grid wide-catalog">
                         </div>
                 </div>
@@ -136,7 +154,7 @@
         <div id="sub-section-pedidos" class="app-content-section">
             <div class="central-container-wide">
                 <h2>Gerenciar Meus Pedidos</h2>
-                <p>Confira abaixo o andamento de suas solicitações. Você pode remover pedidos antigos ou criar novos acervos.</p>
+                <p>Verifique o andamento ou remova registros antigos de suas solicitações direto do banco de dados.</p>
                 <div id="client-orders-history-list" class="client-orders-grid">
                     </div>
             </div>
