@@ -7,7 +7,7 @@
     <link rel="shortcut icon" href="fav.ico" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -98,7 +98,32 @@
                     <div class="user-list-box">
                         <h3><i class="fa-solid fa-cart-shopping"></i> Sua Seleção</h3>
                         <div id="user-selected-list" class="game-list"></div>
-                        <button id="btn-generate-list" class="btn-primary" disabled><i class="fa-solid fa-file-pdf"></i> Gerar Lista Final (PDF)</button>
+                        
+                        <div class="client-form-container">
+                            <h4><i class="fa-solid fa-user-pen"></i> Seus Dados Obrigatórios</h4>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="client-name">Nome</label>
+                                    <input type="text" id="client-name" placeholder="Ex: João">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client-surname">Sobrenome</label>
+                                    <input type="text" id="client-surname" placeholder="Ex: Silva">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="client-whatsapp">WhatsApp</label>
+                                    <input type="tel" id="client-whatsapp" placeholder="Ex: (88) 99999-9999">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client-city">Cidade</label>
+                                    <input type="text" id="client-city" placeholder="Ex: Juazeiro do Norte">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="btn-generate-list" class="btn-primary" disabled><i class="fa-solid fa-file-image"></i> Enviar e Gerar Imagem da Lista</button>
                     </div>
                 </div>
             </div>
@@ -107,11 +132,11 @@
         <section id="success-section" class="view-section">
             <div class="success-card">
                 <i class="fa-solid fa-circle-check success-icon"></i>
-                <h2>Sua lista foi gerada e salva em PDF!</h2>
-                <p>O administrador já recebeu o seu arquivo contendo o pedido. Você pode baixar sua cópia local ou enviar diretamente pelo WhatsApp.</p>
+                <h2>Sua lista foi enviada e salva com sucesso!</h2>
+                <p>O administrador já recebeu o seu pedido contendo a imagem da sua lista. Baixe sua cópia local no botão abaixo e compartilhe o aviso no WhatsApp.</p>
                 <div class="success-actions">
-                    <button id="btn-download-user-pdf" class="btn-primary"><i class="fa-solid fa-file-arrow-down"></i> Baixar Meu PDF</button>
-                    <button id="btn-whatsapp-share" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Compartilhar no WhatsApp</button>
+                    <button id="btn-download-user-jpg" class="btn-primary"><i class="fa-solid fa-download"></i> Baixar Minha Lista (JPEG)</button>
+                    <button id="btn-whatsapp-share" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Notificar no WhatsApp</button>
                     <button onclick="window.location.reload()" class="btn-secondary">Criar Nova Lista</button>
                 </div>
             </div>
@@ -184,12 +209,13 @@
             </div>
 
             <div id="tab-orders" class="tab-content">
-                <h3>Últimas Listas Enviadas em PDF</h3>
+                <h3>Últimas Listas Enviadas em Imagem (JPEG)</h3>
                 <div class="table-responsive">
                     <table>
                         <thead>
                             <tr>
                                 <th>Data/Hora</th>
+                                <th>Cliente / Contato</th>
                                 <th>Pen Drive</th>
                                 <th>Qtd Jogos</th>
                                 <th>Ações de Gerenciamento</th>
@@ -209,22 +235,26 @@
             <form id="login-form">
                 <div class="input-group">
                     <label>E-mail</label>
-                    <input type="email" id="login-email" value="admin@admin.com" disabled>
+                    <input type="email" id="login-email" required placeholder="Digite o e-mail cadastrado">
                 </div>
                 <div class="input-group">
                     <label>Senha</label>
                     <input type="password" id="login-password" required placeholder="Digite sua senha do Firebase">
                 </div>
-                <button type="submit" class="btn-primary">Entrar no Painel</button>
+                <button type="submit" id="btn-login-submit" class="btn-primary">Entrar no Painel</button>
             </form>
         </div>
     </div>
 
-    <div style="display: none;">
-        <div id="a4-pdf-template" class="a4-page">
+    <div class="a4-container-offscreen">
+        <div id="a4-jpg-template" class="a4-page">
             <div class="a4-header">
                 <h1>MINHA LISTA DE JOGOS PS2</h1>
-                <p>Configuração do Pen Drive Selecionado: <span id="a4-usb-size">--</span></p>
+                <div class="a4-client-info-block">
+                    <p><strong>Cliente:</strong> <span id="a4-lbl-name">--</span></p>
+                    <p><strong>WhatsApp:</strong> <span id="a4-lbl-whatsapp">--</span> | <strong>Cidade:</strong> <span id="a4-lbl-city">--</span></p>
+                    <p><strong>Configuração do Pen Drive:</strong> <span id="a4-usb-size">--</span></p>
+                </div>
             </div>
             <table class="a4-table">
                 <thead>
@@ -243,6 +273,5 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
 </body>
 </html>
