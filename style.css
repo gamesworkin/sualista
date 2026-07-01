@@ -125,7 +125,7 @@ button, .label-file {
     margin-top: 30px;
 }
 
-/* --- CONSTRUÇÃO DO PENDRIVE EM VETOR VIA CSS --- */
+/* --- FORMATAÇÕES DO PENDRIVE EM VETOR --- */
 .usb-card {
     background: rgba(18, 22, 31, 0.6);
     border: 1px solid rgba(255,255,255,0.05);
@@ -263,7 +263,7 @@ button, .label-file {
 .usb-card h3 { font-size: 1.6rem; color: var(--text-bright); margin-bottom: 6px; font-weight: 800; }
 .usb-card span { font-size: 0.85rem; color: #8a9ba8; }
 
-/* DASHBOARD E SELEÇÃO DE JOGOS */
+/* DASHBOARD DE SELEÇÃO DE JOGOS */
 #btn-back-to-usb { margin-bottom: 25px; }
 .storage-info { background: var(--card-bg); border-radius: 14px; padding: 25px; margin-bottom: 30px; border: 1px solid rgba(255,255,255,0.06); }
 .progress-container { background: #090b0e; border-radius: 20px; height: 28px; width: 100%; margin: 18px 0; overflow: hidden; border: 1px solid #222a36; padding: 3px; }
@@ -293,7 +293,7 @@ button, .label-file {
 .game-item-info .size { font-size: 0.85rem; color: #8892b0; }
 .user-list-box .game-item { border-left-color: var(--accent-purple); }
 
-/* SEÇÃO DO FORMULÁRIO DO CLIENTE NA SELEÇÃO */
+/* SEÇÃO DO FORMULÁRIO DO CLIENTE */
 .client-form-container {
     background: rgba(0, 0, 0, 0.3);
     border-radius: 10px;
@@ -315,27 +315,10 @@ button, .label-file {
     gap: 12px;
     margin-bottom: 10px;
 }
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-.form-group label {
-    font-size: 0.8rem;
-    color: #a8b2d1;
-    margin-bottom: 4px;
-}
-.form-group input {
-    background: #090b0e;
-    border: 1px solid #222a36;
-    padding: 10px;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 0.88rem;
-}
-.form-group input:focus {
-    border-color: var(--primary-neon);
-    outline: none;
-}
+.form-group { display: flex; flex-direction: column; }
+.form-group label { font-size: 0.8rem; color: #a8b2d1; margin-bottom: 4px; }
+.form-group input { background: #090b0e; border: 1px solid #222a36; padding: 10px; border-radius: 6px; color: #fff; font-size: 0.88rem; }
+.form-group input:focus { border-color: var(--primary-neon); outline: none; }
 
 #btn-generate-list { margin-top: 15px; width: 100%; padding: 16px; font-size: 1rem; }
 
@@ -346,7 +329,7 @@ button, .label-file {
 .success-card p { margin-bottom: 35px; color: #a8b2d1; }
 .success-actions { display: flex; flex-direction: column; gap: 15px; }
 
-/* ADMIN */
+/* PAINEL ADMIN */
 .admin-header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
 .admin-header-box h2 { color: var(--text-bright); }
 .admin-tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #1f2937; }
@@ -378,7 +361,7 @@ tr:hover td { background-color: rgba(255,255,255,0.03); }
 .modal-content { background: #111622; border: 2px solid var(--primary-neon); padding: 35px; border-radius: 16px; width: 90%; max-width: 420px; position: relative; box-shadow: 0 0 40px rgba(0, 242, 254, 0.35); }
 .close-modal { position: absolute; top: 15px; right: 22px; font-size: 1.6rem; cursor: pointer; color: #fff; }
 
-/* --- POSICIONAMENTO FORA DA TELA PARA EVITAR PAGINAS EM BRANCO NO CANVAS --- */
+/* CONTÊINER OCULTO DA PÁGINA DE IMPRESSÃO */
 .a4-container-offscreen {
     position: absolute;
     left: -9999px;
@@ -386,7 +369,7 @@ tr:hover td { background-color: rgba(255,255,255,0.03); }
     width: 210mm;
 }
 
-/* --- DESIGN INTERNO DA FOLHA MODELO GERADA EM IMAGEM --- */
+/* DESIGN INTERNO DO PRINT DA FOLHA */
 .a4-page {
     background: #ffffff !important;
     color: #000000 !important;
