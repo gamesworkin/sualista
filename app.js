@@ -1,6 +1,6 @@
 // ==========================================
 // CONFIGURAÇÕES DO CONFIG DO FIREBASE
-// Substitua obrigatoriamente pelas credenciais do seu Console Firebase
+// Substitua pelas credenciais do seu Console Firebase
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
@@ -26,7 +26,7 @@ let catalogGames = [];
 let userSelection = [];
 let isEditing = false;
 let currentEditId = null;
-let generatedPdfBase64 = ""; // Armazena o PDF gerado temporariamente para o usuário baixar
+let generatedJpgBase64 = ""; // Armazena a imagem gerada temporariamente na sessão
 
 const sections = {
     welcome: document.getElementById('welcome-section'),
@@ -38,6 +38,7 @@ const sections = {
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
     setupEventListeners();
+    setupKeyboardNavigation();
 });
 
 function initApp() {
@@ -53,7 +54,7 @@ function initApp() {
         }
     });
 
-    // Ouvinte em tempo real da lista base de jogos do Realtime Database
+    // Ouvinte em tempo real da lista base de jogos do banco Realtime Database
     database.ref('games').on('value', snapshot => {
         catalogGames = [];
         snapshot.forEach(childSnapshot => {
@@ -86,25 +87,42 @@ function setupEventListeners() {
         switchSection('welcome');
     });
 
-    // Abertura do Modal de Login do Admin
+    // Abertura e fechamento controlado do Modal de Login
     const loginModal = document.getElementById('login-modal');
     document.getElementById('btn-admin-modal').addEventListener('click', () => {
         loginModal.style.display = 'flex';
+        document.getElementById('login-email').focus();
     });
     
     document.querySelector('.close-modal').addEventListener('click', () => {
         loginModal.style.display = 'none';
     });
     
+    // Submissão com efeito de carregamento visual "Logando..."
     document.getElementById('login-form').addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        const email = document.getElementById('login-email').value;
         const pass = document.getElementById('login-password').value;
-        auth.signInWithEmailAndPassword('admin@admin.com', pass)
+        const btnSubmit = document.getElementById('btn-login-submit');
+        
+        // Bloqueia botão e altera texto para evitar cliques repetidos
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = "Logando...";
+
+        auth.signInWithEmailAndPassword(email, pass)
             .then(() => {
                 loginModal.style.display = 'none';
-                document.getElementById('login-password').value = '';
+                document.getElementById('login-form').reset();
             })
-            .catch(err => alert("Falha ao autenticar: " + err.message));
+            .catch(err => {
+                alert("Falha ao autenticar: " + err.message);
+            })
+            .finally(() => {
+                // Restaura o botão caso dê erro
+                btnSubmit.disabled = false;
+                btnSubmit.innerText = "Entrar no Painel";
+            });
     });
 
     document.getElementById('btn-admin-logout').addEventListener('click', () => {
@@ -120,7 +138,7 @@ function setupEventListeners() {
         });
     });
 
-    // CRUD do Administrador - Salvar / Editar
+    // CRUD - Salvar / Editar Jogos
     document.getElementById('game-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const title = document.getElementById('game-title').value;
@@ -146,15 +164,40 @@ function setupEventListeners() {
     document.getElementById('btn-export-json').addEventListener('click', exportDatabaseToJSON);
     document.getElementById('import-json').addEventListener('change', importDatabaseFromJSON);
 
-    // Fluxo do Usuário: Gerar lista transforma a folha em PDF real e joga em Base64
-    document.getElementById('btn-generate-list').addEventListener('click', processAndSendPDFList);
+    // Monitora os campos de texto do cliente para ativar/desativar botão de envio
+    const clientInputs = ['client-name', 'client-surname', 'client-whatsapp', 'client-city'];
+    clientInputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', updateStorageMetrics);
+    });
 
-    // Ação do usuário baixar o PDF localmente na tela de sucesso
-    document.getElementById('btn-download-user-pdf').addEventListener('click', () => {
-        if(generatedPdfBase64) {
-            downloadPdfFromBase64(generatedPdfBase64, `Minha_Lista_PS2_${currentUsb.size}GB.pdf`);
+    // Evento de geração da imagem real
+    document.getElementById('btn-generate-list').addEventListener('click', processAndSendJPEGList);
+
+    // Permite ao usuário baixar localmente o JPEG gerado
+    document.getElementById('btn-download-user-jpg').addEventListener('click', () => {
+        if(generatedJpgBase64) {
+            const link = document.createElement('a');
+            link.href = "data:image/jpeg;base64," + generatedJpgBase64;
+            link.download = `Minha_Lista_PS2_${currentUsb.size}GB.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     });
+}
+
+// FUNÇÃO DE NAVEGAÇÃO POR TECLADO COM A TECLA ENTER
+function setupKeyboardNavigation() {
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+
+    emailInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Impede o envio precoce do formulário
+            passwordInput.focus(); // Pula para a senha
+        }
+    });
+    // O campo de password naturalmente submete o form ao pressionar enter por estar dentro de um <form>
 }
 
 function switchSection(sectionId) {
@@ -169,10 +212,6 @@ function formatGameSizeText(game) {
 function renderCatalog() {
     const listContainer = document.getElementById('catalog-list');
     listContainer.innerHTML = '';
-    if(catalogGames.length === 0) {
-        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Catálogo vazio.</p>';
-        return;
-    }
     catalogGames.forEach(game => {
         const item = document.createElement('div');
         item.className = 'game-item';
@@ -187,10 +226,6 @@ function renderCatalog() {
 function renderUserSelection() {
     const listContainer = document.getElementById('user-selected-list');
     listContainer.innerHTML = '';
-    if(userSelection.length === 0) {
-        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Nenhum jogo selecionado.</p>';
-        return;
-    }
     userSelection.forEach((game, index) => {
         const item = document.createElement('div');
         item.className = 'game-item';
@@ -221,6 +256,7 @@ function updateStorageMetrics() {
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
     const max = currentUsb.maxCapacity;
     const percentage = (totalUsedGB / max) * 100;
+    
     const bar = document.getElementById('storage-bar');
     const text = document.getElementById('storage-text');
     const btnGenerate = document.getElementById('btn-generate-list');
@@ -228,17 +264,37 @@ function updateStorageMetrics() {
     bar.style.width = `${Math.min(percentage, 100)}%`;
     text.innerText = `${totalUsedGB.toFixed(2)} GB / ${max.toFixed(2)} GB usado`;
 
+    // Validação de campos obrigatórios
+    const name = document.getElementById('client-name').value.trim();
+    const surname = document.getElementById('client-surname').value.trim();
+    const whatsapp = document.getElementById('client-whatsapp').value.trim();
+    const city = document.getElementById('client-city').value.trim();
+    const formValido = name !== "" && surname !== "" && whatsapp !== "" && city !== "";
+
     if (totalUsedGB > max) {
         bar.classList.add('overlimit');
         btnGenerate.disabled = true;
     } else {
         bar.classList.remove('overlimit');
-        btnGenerate.disabled = userSelection.length === 0;
+        // O botão só destrava com jogos na lista E formulário preenchido
+        btnGenerate.disabled = !(userSelection.length > 0 && formValido);
     }
 }
 
-// --- GERAÇÃO COMPLETA DO PDF REAL (HTML2PDF) EM BASE64 PARA ENVIO ---
-function processAndSendPDFList() {
+// --- GERAÇÃO COMPLETA DA IMAGEM REAL EM ALTA DEFINIÇÃO VIA CANVAS ---
+function processAndSendJPEGList() {
+    const name = document.getElementById('client-name').value.trim();
+    const surname = document.getElementById('client-surname').value.trim();
+    const whatsapp = document.getElementById('client-whatsapp').value.trim();
+    const city = document.getElementById('client-city').value.trim();
+    const fullName = `${name} ${surname}`;
+
+    // Injeta os dados coletados nos rótulos da folha A4 interna
+    document.getElementById('a4-lbl-name').innerText = fullName;
+    document.getElementById('a4-lbl-whatsapp').innerText = whatsapp;
+    document.getElementById('a4-lbl-city').innerText = city;
+    document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Capacidade Real Livre: ${currentUsb.maxCapacity}GB)`;
+
     const tableBody = document.getElementById('a4-table-body');
     tableBody.innerHTML = '';
     
@@ -253,76 +309,70 @@ function processAndSendPDFList() {
     });
 
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
-    document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Teto Real: ${currentUsb.maxCapacity}GB)`;
     document.getElementById('a4-total-used').innerText = `${totalUsedGB.toFixed(2)} GB`;
 
-    // Configuração do motor html2pdf para folha A4 perfeita
-    const element = document.getElementById('a4-pdf-template');
-    const opt = {
-        margin: 0,
-        filename: 'lista.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    // Altera o texto do botão para indicar carregamento
     const btnGen = document.getElementById('btn-generate-list');
-    btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando PDF...';
+    btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processando Imagem...';
     btnGen.disabled = true;
 
-    html2pdf().set(opt).from(element).outputPdf('arraybuffer').then(pdfBuffer => {
-        // Converte o Buffer Binário do PDF diretamente em uma String Base64 limpa
-        let binary = '';
-        const bytes = new Uint8Array(pdfBuffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        const base64PDF = window.btoa(binary);
+    // Renderização direta com Html2Canvas
+    const targetElement = document.getElementById('a4-jpg-template');
+    
+    html2canvas(targetElement, {
+        scale: 2, // Garante alta resolução para leitura de textos pequenos
+        logging: false,
+        useCORS: true
+    }).then(canvas => {
+        // Converte o canvas obtido para string JPEG base64 pura (removendo o cabeçalho data:image/jpeg;base64,)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const base64Image = dataUrl.split(',')[1];
         
-        generatedPdfBase64 = base64PDF; // salva localmente na sessão do cliente
+        generatedJpgBase64 = base64Image;
 
-        // Salva nas Encomendas do Administrador no Firebase
+        // Salva a Encomenda com os dados de identificação estruturados
         const orderPayload = {
             timestamp: firebase.database.ServerValue.TIMESTAMP,
+            clientName: fullName,
+            clientWhatsapp: whatsapp,
+            clientCity: city,
             usbOriginalSize: `${currentUsb.size}GB`,
             gamesCount: userSelection.length,
-            pdfBase64File: base64PDF
+            imageJpgBase64: base64Image
         };
 
         database.ref('orders').push(orderPayload).then(() => {
-            setupWhatsappButton();
+            setupWhatsappButton(fullName, whatsapp, city);
             switchSection('success');
         }).catch(err => {
-            alert("Erro ao sincronizar pedido com o servidor: " + err.message);
-            btnGen.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Gerar Lista Final (PDF)';
+            alert("Erro ao enviar pedido para a base de dados: " + err.message);
+            btnGen.innerHTML = '<i class="fa-solid fa-file-image"></i> Enviar e Gerar Imagem da Lista';
             btnGen.disabled = false;
         });
     });
 }
 
-function setupWhatsappButton() {
-    let msg = `*NOVA ENCOMENDA DE JOGOS - PS2*%0A`;
+function setupWhatsappButton(name, whatsapp, city) {
+    let msg = `*AVISO DE NOVA LISTA DE JOGOS - PS2*%0A`;
     msg += `---------------------------------%0A`;
-    msg += `*Pen Drive:* ${currentUsb.size}GB%0A`;
-    msg += `*Quantidade de Jogos:* ${userSelection.length}%0A%0A`;
-    msg += `*JOGOS SOLICITADOS:*%0A`;
-    userSelection.forEach((game, i) => {
-        msg += `${i+1}. ${game.title} (${formatGameSizeText(game)})%0A`;
-    });
+    msg += `*Cliente:* ${name}%0A`;
+    msg += `*WhatsApp:* ${whatsapp}%0A`;
+    msg += `*Cidade:* ${city}%0A`;
+    msg += `*Pen Drive:* ${currentUsb.size}GB (${userSelection.length} jogos)%0A`;
+    msg += `---------------------------------%0A`;
+    msg += `_A imagem completa da lista já se encontra salva no seu Painel Administrativo!_`;
+
     const url = `https://api.whatsapp.com/send?phone=${TELEFONE_WHATSAPP}&text=${msg}`;
     document.getElementById('btn-whatsapp-share').onclick = () => window.open(url, '_blank');
 }
 
-// --- FLUXO DO ADMINISTRADOR ---
+// --- CONTROLE PAINEL DO ADMINISTRADOR ---
 function loadAdminData() {
     database.ref('orders').on('value', snapshot => {
         const tableBody = document.getElementById('admin-orders-table');
         tableBody.innerHTML = '';
         
         if(!snapshot.exists()) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Nenhuma nova encomenda na fila.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhuma nova encomenda na fila.</td></tr>';
             return;
         }
 
@@ -334,17 +384,21 @@ function loadAdminData() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${date}</td>
+                <td>
+                    <strong>${order.clientName}</strong><br>
+                    <small style="color: #8892b0;">${order.clientWhatsapp} | ${order.clientCity}</small>
+                </td>
                 <td><i class="fa-solid fa-usb" style="color: var(--primary-neon);"></i> ${order.usbOriginalSize}</td>
                 <td>${order.gamesCount} jogo(s)</td>
                 <td>
-                    <button class="btn-primary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="viewPdfFromAdmin('${orderId}')">
-                        <i class="fa-solid fa-eye"></i> Visualizar PDF
+                    <button class="btn-primary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="viewImageFromAdmin('${orderId}')">
+                        <i class="fa-solid fa-eye"></i> Ver Imagem
                     </button>
-                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="downloadPdfFromAdmin('${orderId}')">
-                        <i class="fa-solid fa-download"></i> Baixar PDF
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="downloadImageFromAdmin('${orderId}')">
+                        <i class="fa-solid fa-download"></i> Baixar JPEG
                     </button>
                     <button class="btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="finalizeAndClearOrder('${orderId}')">
-                        <i class="fa-solid fa-circle-check"></i> Finalizar e Entregar
+                        <i class="fa-solid fa-circle-check"></i> Finalizar e Deletar
                     </button>
                 </td>
             `;
@@ -353,71 +407,51 @@ function loadAdminData() {
     });
 }
 
-// FUNÇÃO PARA O ADMIN REVISAR O PEDIDO EM PDF INSTANTANEAMENTE
-window.viewPdfFromAdmin = function(orderId) {
+// Abre a imagem JPEG gerada em uma nova guia para visualização imediata do Admin
+window.viewImageFromAdmin = function(orderId) {
     database.ref('orders/' + orderId).once('value').then(snapshot => {
         if(snapshot.exists()) {
             const order = snapshot.val();
-            const base64 = order.pdfBase64File;
-            
-            // Converte base64 para blob binário e abre em uma nova aba do navegador nativamente
-            const byteCharacters = atob(base64);
+            const byteCharacters = atob(order.imageJpgBase64);
             const byteNumbers = new Array(byteCharacters.length);
             for (let i = 0; i < byteCharacters.length; i++) {
                 byteNumbers[i] = byteCharacters.charCodeAt(i);
             }
             const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], {type: 'application/pdf'});
+            const blob = new Blob([byteArray], {type: 'image/jpeg'});
             const fileURL = URL.createObjectURL(blob);
             window.open(fileURL, '_blank');
         }
     });
 };
 
-// FUNÇÃO PARA O ADMIN BAIXAR O PDF LEGÍTIMO DIRETAMENTE
-window.downloadPdfFromAdmin = function(orderId) {
+// Faz o download direto do arquivo de imagem do pedido
+window.downloadImageFromAdmin = function(orderId) {
     database.ref('orders/' + orderId).once('value').then(snapshot => {
         if(snapshot.exists()) {
             const order = snapshot.val();
-            downloadPdfFromBase64(order.pdfBase64File, `Pedido_PS2_${order.usbOriginalSize}_${orderId}.pdf`);
+            const link = document.createElement('a');
+            link.href = "data:image/jpeg;base64," + order.imageJpgBase64;
+            link.download = `Lista_PS2_${order.clientName.replace(/\s+/g, '_')}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     });
 };
 
-// BOTÃO FINALIZAR: REMOVE O PEDIDO DO FIREBASE BANCO DE DADOS PARA LIMPEZA DEFINITIVA
+// Remove de forma limpa o pedido finalizado da base do Firebase Realtime Database
 window.finalizeAndClearOrder = function(orderId) {
-    if(confirm("Deseja marcar essa encomenda como concluída? Ela será excluída permanentemente do painel.")) {
+    if(confirm("Deseja marcar essa encomenda como concluída e entregue? Isto apagará o registro permanentemente do banco de dados.")) {
         database.ref('orders/' + orderId).remove().then(() => {
-            alert("Pedido finalizado com sucesso. Banco de dados limpo!");
-        }).catch(err => alert("Erro ao limpar registro: " + err.message));
+            alert("Pedido finalizado com sucesso! Banco de dados limpo.");
+        }).catch(err => alert("Erro ao limpar banco: " + err.message));
     }
 };
-
-// AUXILIAR DE DOWNLOAD GLOBAL DE PDF VIA BASE64
-function downloadPdfFromBase64(base64String, filename) {
-    const byteCharacters = atob(base64String);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], {type: 'application/pdf'});
-    
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
 
 function renderAdminGamesTable() {
     const tableBody = document.getElementById('admin-games-table');
     tableBody.innerHTML = '';
-    if(catalogGames.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum jogo cadastrado.</td></tr>';
-        return;
-    }
     catalogGames.forEach(game => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
