@@ -7,6 +7,7 @@
     <link rel="shortcut icon" href="fav.ico" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
@@ -27,20 +28,49 @@
             
             <div class="usb-container">
                 <div class="usb-card" data-size="32" data-max="28.5">
-                    <div class="usb-glow"></div>
-                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <div class="usb-vector">
+                        <div class="usb-cap"></div>
+                        <div class="usb-connector">
+                            <div class="usb-inside-lines"></div>
+                        </div>
+                        <div class="usb-body">
+                            <div class="usb-body-line"></div>
+                            <span class="usb-capacity-label">32GB</span>
+                        </div>
+                        <div class="usb-loop"></div>
+                    </div>
                     <h3>32 GB</h3>
                     <span>Capacidade Real: 28.5 GB</span>
                 </div>
+
                 <div class="usb-card" data-size="64" data-max="58.3">
-                    <div class="usb-glow"></div>
-                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <div class="usb-vector">
+                        <div class="usb-cap"></div>
+                        <div class="usb-connector">
+                            <div class="usb-inside-lines"></div>
+                        </div>
+                        <div class="usb-body" style="background: linear-gradient(135deg, #2c3e50 0%, #0f171e 100%);">
+                            <div class="usb-body-line"></div>
+                            <span class="usb-capacity-label">64GB</span>
+                        </div>
+                        <div class="usb-loop"></div>
+                    </div>
                     <h3>64 GB</h3>
                     <span>Capacidade Real: 58.3 GB</span>
                 </div>
+
                 <div class="usb-card" data-size="128" data-max="116.5">
-                    <div class="usb-glow"></div>
-                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <div class="usb-vector">
+                        <div class="usb-cap"></div>
+                        <div class="usb-connector">
+                            <div class="usb-inside-lines"></div>
+                        </div>
+                        <div class="usb-body" style="background: linear-gradient(135deg, #4a154b 0%, #1a051c 100%);">
+                            <div class="usb-body-line"></div>
+                            <span class="usb-capacity-label">128GB</span>
+                        </div>
+                        <div class="usb-loop"></div>
+                    </div>
                     <h3>128 GB</h3>
                     <span>Capacidade Real: 116.5 GB</span>
                 </div>
@@ -62,15 +92,13 @@
                 <div class="game-builder-grid">
                     <div class="catalog-box">
                         <h3><i class="fa-solid fa-list-ul"></i> Jogos Disponíveis</h3>
-                        <div id="catalog-list" class="game-list">
-                            </div>
+                        <div id="catalog-list" class="game-list"></div>
                     </div>
 
                     <div class="user-list-box">
                         <h3><i class="fa-solid fa-cart-shopping"></i> Sua Seleção</h3>
-                        <div id="user-selected-list" class="game-list">
-                            </div>
-                        <button id="btn-generate-list" class="btn-primary" disabled><i class="fa-solid fa-file-invoice"></i> Gerar Lista Final</button>
+                        <div id="user-selected-list" class="game-list"></div>
+                        <button id="btn-generate-list" class="btn-primary" disabled><i class="fa-solid fa-file-pdf"></i> Gerar Lista Final (PDF)</button>
                     </div>
                 </div>
             </div>
@@ -79,11 +107,11 @@
         <section id="success-section" class="view-section">
             <div class="success-card">
                 <i class="fa-solid fa-circle-check success-icon"></i>
-                <h2>Sua lista foi enviada com sucesso!</h2>
-                <p>O administrador já recebeu o seu pedido. Agora você pode compartilhá-la diretamente no WhatsApp ou visualizar sua folha de impressão.</p>
+                <h2>Sua lista foi gerada e salva em PDF!</h2>
+                <p>O administrador já recebeu o seu arquivo contendo o pedido. Você pode baixar sua cópia local ou enviar diretamente pelo WhatsApp.</p>
                 <div class="success-actions">
+                    <button id="btn-download-user-pdf" class="btn-primary"><i class="fa-solid fa-file-arrow-down"></i> Baixar Meu PDF</button>
                     <button id="btn-whatsapp-share" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Compartilhar no WhatsApp</button>
-                    <button id="btn-view-a4" class="btn-primary"><i class="fa-solid fa-eye"></i> Ver Lista Estilo A4</button>
                     <button onclick="window.location.reload()" class="btn-secondary">Criar Nova Lista</button>
                 </div>
             </div>
@@ -148,8 +176,7 @@
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody id="admin-games-table">
-                                    </tbody>
+                                <tbody id="admin-games-table"></tbody>
                             </table>
                         </div>
                     </div>
@@ -157,19 +184,18 @@
             </div>
 
             <div id="tab-orders" class="tab-content">
-                <h3>Últimas Listas Enviadas por Usuários</h3>
+                <h3>Últimas Listas Enviadas em PDF</h3>
                 <div class="table-responsive">
                     <table>
                         <thead>
                             <tr>
                                 <th>Data/Hora</th>
-                                <th>Pen Drive original</th>
+                                <th>Pen Drive</th>
                                 <th>Qtd Jogos</th>
-                                <th>Ação</th>
+                                <th>Ações de Gerenciamento</th>
                             </tr>
                         </thead>
-                        <tbody id="admin-orders-table">
-                            </tbody>
+                        <tbody id="admin-orders-table"></tbody>
                     </table>
                 </div>
             </div>
@@ -189,16 +215,13 @@
                     <label>Senha</label>
                     <input type="password" id="login-password" required placeholder="Digite sua senha do Firebase">
                 </div>
-                <button type="submit" class="btn-primary">Entrar no Panel</button>
+                <button type="submit" class="btn-primary">Entrar no Painel</button>
             </form>
         </div>
     </div>
 
-    <div id="a4-container" class="a4-wrapper">
-        <button id="btn-close-a4" class="btn-danger no-print"><i class="fa-solid fa-xmark"></i> Fechar Pré-visualização</button>
-        <button id="btn-print-a4" class="btn-primary no-print"><i class="fa-solid fa-print"></i> Imprimir / Salvar PDF</button>
-        
-        <div class="a4-page">
+    <div style="display: none;">
+        <div id="a4-pdf-template" class="a4-page">
             <div class="a4-header">
                 <h1>MINHA LISTA DE JOGOS PS2</h1>
                 <p>Configuração do Pen Drive Selecionado: <span id="a4-usb-size">--</span></p>
@@ -206,13 +229,12 @@
             <table class="a4-table">
                 <thead>
                     <tr>
-                        <th style="width: 10%">Nº</th>
-                        <th style="width: 70%">Nome do Jogo</th>
-                        <th style="width: 20%">Tamanho</th>
+                        <th style="width: 10%; text-align: center;">Nº</th>
+                        <th style="width: 70%; text-align: left;">Nome do Jogo</th>
+                        <th style="width: 20%; text-align: center;">Tamanho</th>
                     </tr>
                 </thead>
-                <tbody id="a4-table-body">
-                    </tbody>
+                <tbody id="a4-table-body"></tbody>
             </table>
             <div class="a4-footer">
                 <p>Espaço Total Utilizado: <span id="a4-total-used">0 GB</span></p>
