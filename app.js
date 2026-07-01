@@ -48,7 +48,7 @@ function initApp() {
             switchSection('admin');
             loadAdminData();
         } else {
-            if(sections.admin.classList.contains('active')) {
+            if(sections.admin && sections.admin.classList.contains('active')) {
                 switchSection('welcome');
             }
         }
@@ -69,13 +69,15 @@ function initApp() {
 }
 
 function setupEventListeners() {
-    // Escuta o clique nos cards dos Pendrives da Home
+    // Escuta o clique nos cards dos Pendrives da Home de forma segura
     document.querySelectorAll('.usb-card').forEach(card => {
         card.addEventListener('click', () => {
             currentUsb.size = parseInt(card.dataset.size);
             currentUsb.maxCapacity = parseFloat(card.dataset.max);
             
-            document.getElementById('selected-usb-title').innerText = `${currentUsb.size}GB`;
+            const titleEl = document.getElementById('selected-usb-title');
+            if (titleEl) titleEl.innerText = `${currentUsb.size}GB`;
+            
             userSelection = []; 
             updateStorageMetrics();
             renderUserSelection();
@@ -83,126 +85,167 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById('btn-back-to-usb').addEventListener('click', () => {
-        switchSection('welcome');
-    });
+    const btnBack = document.getElementById('btn-back-to-usb');
+    if (btnBack) {
+        btnBack.addEventListener('click', () => {
+            switchSection('welcome');
+        });
+    }
 
-    // Abertura e fechamento controlado do Modal de Login
+    // Abertura e fechamento do Modal de Login
     const loginModal = document.getElementById('login-modal');
-    document.getElementById('btn-admin-modal').addEventListener('click', () => {
-        loginModal.style.display = 'flex';
-        document.getElementById('login-email').focus();
-    });
-    
-    document.querySelector('.close-modal').addEventListener('click', () => {
-        loginModal.style.display = 'none';
-    });
-    
-    // Submissão com efeito de carregamento visual "Logando..."
-    document.getElementById('login-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const email = document.getElementById('login-email').value;
-        const pass = document.getElementById('login-password').value;
-        const btnSubmit = document.getElementById('btn-login-submit');
-        
-        // Bloqueia botão e altera texto para evitar cliques repetidos
-        btnSubmit.disabled = true;
-        btnSubmit.innerText = "Logando...";
+    const btnAdminModal = document.getElementById('btn-admin-modal');
+    const closeEl = document.querySelector('.close-modal');
 
-        auth.signInWithEmailAndPassword(email, pass)
-            .then(() => {
-                loginModal.style.display = 'none';
-                document.getElementById('login-form').reset();
-            })
-            .catch(err => {
-                alert("Falha ao autenticar: " + err.message);
-            })
-            .finally(() => {
-                // Restaura o botão caso dê erro
-                btnSubmit.disabled = false;
-                btnSubmit.innerText = "Entrar no Painel";
-            });
-    });
+    if (btnAdminModal && loginModal) {
+        btnAdminModal.addEventListener('click', () => {
+            loginModal.style.style.display = 'flex';
+            const emailInput = document.getElementById('login-email');
+            if(emailInput) emailInput.focus();
+        });
+    }
+    
+    if (closeEl && loginModal) {
+        closeEl.addEventListener('click', () => {
+            loginModal.style.display = 'none';
+        });
+    }
+    
+    // Submissão do login administrativo
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const emailEl = document.getElementById('login-email');
+            const passEl = document.getElementById('login-password');
+            const btnSubmit = document.getElementById('btn-login-submit');
+            
+            if (!emailEl || !passEl) return;
 
-    document.getElementById('btn-admin-logout').addEventListener('click', () => {
-        auth.signOut().then(() => switchSection('welcome'));
-    });
+            const email = emailEl.value;
+            const pass = passEl.value;
+            
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerText = "Logando...";
+            }
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .then(() => {
+                    if (loginModal) loginModal.style.display = 'none';
+                    loginForm.reset();
+                })
+                .catch(err => {
+                    alert("Falha ao autenticar: " + err.message);
+                })
+                .finally(() => {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerText = "Entrar no Painel";
+                    }
+                });
+        });
+    }
+
+    const btnLogout = document.getElementById('btn-admin-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            auth.signOut().then(() => switchSection('welcome'));
+        });
+    }
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById(btn.dataset.tab).classList.add('active');
+            const targetTab = document.getElementById(btn.dataset.tab);
+            if (targetTab) targetTab.classList.add('active');
         });
     });
 
     // CRUD - Salvar / Editar Jogos
-    document.getElementById('game-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const title = document.getElementById('game-title').value;
-        const sizeValue = parseFloat(document.getElementById('game-size').value);
-        const unit = document.getElementById('game-unit').value;
-        const sizeInGB = unit === 'MB' ? sizeValue / 1024 : sizeValue;
+    const gameForm = document.getElementById('game-form');
+    if (gameForm) {
+        gameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title = document.getElementById('game-title').value;
+            const sizeValue = parseFloat(document.getElementById('game-size').value);
+            const unit = document.getElementById('game-unit').value;
+            const sizeInGB = unit === 'MB' ? sizeValue / 1024 : sizeValue;
 
-        const gameData = {
-            title: title,
-            displaySize: sizeValue,
-            unit: unit,
-            sizeGB: sizeInGB
-        };
+            const gameData = {
+                title: title,
+                displaySize: sizeValue,
+                unit: unit,
+                sizeGB: sizeInGB
+            };
 
-        if (isEditing) {
-            database.ref('games/' + currentEditId).set(gameData).then(() => resetGameForm());
-        } else {
-            database.ref('games').push(gameData).then(() => resetGameForm());
-        }
-    });
+            if (isEditing) {
+                database.ref('games/' + currentEditId).set(gameData).then(() => resetGameForm());
+            } else {
+                database.ref('games').push(gameData).then(() => resetGameForm());
+            }
+        });
+    }
 
-    document.getElementById('btn-cancel-edit').addEventListener('click', resetGameForm);
-    document.getElementById('btn-export-json').addEventListener('click', exportDatabaseToJSON);
-    document.getElementById('import-json').addEventListener('change', importDatabaseFromJSON);
+    const btnCancelEdit = document.getElementById('btn-cancel-edit');
+    if (btnCancelEdit) btnCancelEdit.addEventListener('click', resetGameForm);
 
-    // Monitora os campos de texto do cliente para ativar/desativar botão de envio
+    const btnExport = document.getElementById('btn-export-json');
+    if (btnExport) btnExport.addEventListener('click', exportDatabaseToJSON);
+
+    const fileImport = document.getElementById('import-json');
+    if (fileImport) fileImport.addEventListener('change', importDatabaseFromJSON);
+
+    // Monitora os campos de identificação obrigatórios do cliente
     const clientInputs = ['client-name', 'client-surname', 'client-whatsapp', 'client-city'];
     clientInputs.forEach(id => {
-        document.getElementById(id).addEventListener('input', updateStorageMetrics);
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updateStorageMetrics);
     });
 
     // Evento de geração da imagem real
-    document.getElementById('btn-generate-list').addEventListener('click', processAndSendJPEGList);
+    const btnGenList = document.getElementById('btn-generate-list');
+    if (btnGenList) btnGenList.addEventListener('click', processAndSendJPEGList);
 
-    // Permite ao usuário baixar localmente o JPEG gerado
-    document.getElementById('btn-download-user-jpg').addEventListener('click', () => {
-        if(generatedJpgBase64) {
-            const link = document.createElement('a');
-            link.href = "data:image/jpeg;base64," + generatedJpgBase64;
-            link.download = `Minha_Lista_PS2_${currentUsb.size}GB.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    });
+    // Permite baixar localmente o JPEG gerado
+    const btnDownUserJpg = document.getElementById('btn-download-user-jpg');
+    if (btnDownUserJpg) {
+        btnDownUserJpg.addEventListener('click', () => {
+            if(generatedJpgBase64) {
+                const link = document.createElement('a');
+                link.href = "data:image/jpeg;base64," + generatedJpgBase64;
+                link.download = `Minha_Lista_PS2_${currentUsb.size}GB.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    }
 }
 
-// FUNÇÃO DE NAVEGAÇÃO POR TECLADO COM A TECLA ENTER
+// MAPEAMENTO SEGURO DA NAVEGAÇÃO DE TECLADO (ENTER)
 function setupKeyboardNavigation() {
     const emailInput = document.getElementById('login-email');
     const passwordInput = document.getElementById('login-password');
 
-    emailInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault(); // Impede o envio precoce do formulário
-            passwordInput.focus(); // Pula para a senha
-        }
-    });
-    // O campo de password naturalmente submete o form ao pressionar enter por estar dentro de um <form>
+    if (emailInput && passwordInput) {
+        emailInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); 
+                passwordInput.focus(); 
+            }
+        });
+    }
 }
 
 function switchSection(sectionId) {
-    Object.values(sections).forEach(s => s.classList.remove('active'));
-    sections[sectionId].classList.add('active');
+    Object.keys(sections).forEach(key => {
+        if(sections[key]) sections[key].classList.remove('active');
+    });
+    if(sections[sectionId]) sections[sectionId].classList.add('active');
 }
 
 function formatGameSizeText(game) {
@@ -211,6 +254,7 @@ function formatGameSizeText(game) {
 
 function renderCatalog() {
     const listContainer = document.getElementById('catalog-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
     catalogGames.forEach(game => {
         const item = document.createElement('div');
@@ -225,6 +269,7 @@ function renderCatalog() {
 
 function renderUserSelection() {
     const listContainer = document.getElementById('user-selected-list');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
     userSelection.forEach((game, index) => {
         const item = document.createElement('div');
@@ -237,51 +282,57 @@ function renderUserSelection() {
     });
 }
 
-function addGameToSelection(id) {
+window.addGameToSelection = function(id) {
     const game = catalogGames.find(g => g.id === id);
     if(game) {
         userSelection.push(game);
         renderUserSelection();
         updateStorageMetrics();
     }
-}
+};
 
-function removeGameFromSelection(index) {
+window.removeGameFromSelection = function(index) {
     userSelection.splice(index, 1);
     renderUserSelection();
     updateStorageMetrics();
-}
+};
 
 function updateStorageMetrics() {
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
     const max = currentUsb.maxCapacity;
-    const percentage = (totalUsedGB / max) * 100;
+    const percentage = max > 0 ? (totalUsedGB / max) * 100 : 0;
     
     const bar = document.getElementById('storage-bar');
     const text = document.getElementById('storage-text');
     const btnGenerate = document.getElementById('btn-generate-list');
 
-    bar.style.width = `${Math.min(percentage, 100)}%`;
-    text.innerText = `${totalUsedGB.toFixed(2)} GB / ${max.toFixed(2)} GB usado`;
+    if (bar) bar.style.width = `${Math.min(percentage, 100)}%`;
+    if (text) text.innerText = `${totalUsedGB.toFixed(2)} GB / ${max.toFixed(2)} GB usado`;
 
     // Validação de campos obrigatórios
-    const name = document.getElementById('client-name').value.trim();
-    const surname = document.getElementById('client-surname').value.trim();
-    const whatsapp = document.getElementById('client-whatsapp').value.trim();
-    const city = document.getElementById('client-city').value.trim();
+    const nameEl = document.getElementById('client-name');
+    const surnameEl = document.getElementById('client-surname');
+    const whatsappEl = document.getElementById('client-whatsapp');
+    const cityEl = document.getElementById('client-city');
+
+    const name = nameEl ? nameEl.value.trim() : "";
+    const surname = surnameEl ? surnameEl.value.trim() : "";
+    const whatsapp = whatsappEl ? whatsappEl.value.trim() : "";
+    const city = cityEl ? cityEl.value.trim() : "";
     const formValido = name !== "" && surname !== "" && whatsapp !== "" && city !== "";
 
-    if (totalUsedGB > max) {
-        bar.classList.add('overlimit');
-        btnGenerate.disabled = true;
-    } else {
-        bar.classList.remove('overlimit');
-        // O botão só destrava com jogos na lista E formulário preenchido
-        btnGenerate.disabled = !(userSelection.length > 0 && formValido);
+    if (btnGenerate) {
+        if (totalUsedGB > max) {
+            if (bar) bar.classList.add('overlimit');
+            btnGenerate.disabled = true;
+        } else {
+            if (bar) bar.classList.remove('overlimit');
+            btnGenerate.disabled = !(userSelection.length > 0 && formValido);
+        }
     }
 }
 
-// --- GERAÇÃO COMPLETA DA IMAGEM REAL EM ALTA DEFINIÇÃO VIA CANVAS ---
+// --- RENDEREZACAO E ENVIO DA IMAGEM REAL VIA CANVAS ---
 function processAndSendJPEGList() {
     const name = document.getElementById('client-name').value.trim();
     const surname = document.getElementById('client-surname').value.trim();
@@ -289,13 +340,13 @@ function processAndSendJPEGList() {
     const city = document.getElementById('client-city').value.trim();
     const fullName = `${name} ${surname}`;
 
-    // Injeta os dados coletados nos rótulos da folha A4 interna
     document.getElementById('a4-lbl-name').innerText = fullName;
     document.getElementById('a4-lbl-whatsapp').innerText = whatsapp;
     document.getElementById('a4-lbl-city').innerText = city;
     document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Capacidade Real Livre: ${currentUsb.maxCapacity}GB)`;
 
     const tableBody = document.getElementById('a4-table-body');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
     
     userSelection.forEach((game, index) => {
@@ -312,24 +363,23 @@ function processAndSendJPEGList() {
     document.getElementById('a4-total-used').innerText = `${totalUsedGB.toFixed(2)} GB`;
 
     const btnGen = document.getElementById('btn-generate-list');
-    btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processando Imagem...';
-    btnGen.disabled = true;
+    if (btnGen) {
+        btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processando Imagem...';
+        btnGen.disabled = true;
+    }
 
-    // Renderização direta com Html2Canvas
     const targetElement = document.getElementById('a4-jpg-template');
     
     html2canvas(targetElement, {
-        scale: 2, // Garante alta resolução para leitura de textos pequenos
+        scale: 2, 
         logging: false,
         useCORS: true
     }).then(canvas => {
-        // Converte o canvas obtido para string JPEG base64 pura (removendo o cabeçalho data:image/jpeg;base64,)
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         const base64Image = dataUrl.split(',')[1];
         
         generatedJpgBase64 = base64Image;
 
-        // Salva a Encomenda com os dados de identificação estruturados
         const orderPayload = {
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             clientName: fullName,
@@ -345,8 +395,10 @@ function processAndSendJPEGList() {
             switchSection('success');
         }).catch(err => {
             alert("Erro ao enviar pedido para a base de dados: " + err.message);
-            btnGen.innerHTML = '<i class="fa-solid fa-file-image"></i> Enviar e Gerar Imagem da Lista';
-            btnGen.disabled = false;
+            if (btnGen) {
+                btnGen.innerHTML = '<i class="fa-solid fa-file-image"></i> Enviar e Gerar Imagem da Lista';
+                btnGen.disabled = false;
+            }
         });
     });
 }
@@ -362,13 +414,15 @@ function setupWhatsappButton(name, whatsapp, city) {
     msg += `_A imagem completa da lista já se encontra salva no seu Painel Administrativo!_`;
 
     const url = `https://api.whatsapp.com/send?phone=${TELEFONE_WHATSAPP}&text=${msg}`;
-    document.getElementById('btn-whatsapp-share').onclick = () => window.open(url, '_blank');
+    const btnWpp = document.getElementById('btn-whatsapp-share');
+    if (btnWpp) btnWpp.onclick = () => window.open(url, '_blank');
 }
 
 // --- CONTROLE PAINEL DO ADMINISTRADOR ---
 function loadAdminData() {
     database.ref('orders').on('value', snapshot => {
         const tableBody = document.getElementById('admin-orders-table');
+        if (!tableBody) return;
         tableBody.innerHTML = '';
         
         if(!snapshot.exists()) {
@@ -407,7 +461,6 @@ function loadAdminData() {
     });
 }
 
-// Abre a imagem JPEG gerada em uma nova guia para visualização imediata do Admin
 window.viewImageFromAdmin = function(orderId) {
     database.ref('orders/' + orderId).once('value').then(snapshot => {
         if(snapshot.exists()) {
@@ -425,7 +478,6 @@ window.viewImageFromAdmin = function(orderId) {
     });
 };
 
-// Faz o download direto do arquivo de imagem do pedido
 window.downloadImageFromAdmin = function(orderId) {
     database.ref('orders/' + orderId).once('value').then(snapshot => {
         if(snapshot.exists()) {
@@ -440,7 +492,6 @@ window.downloadImageFromAdmin = function(orderId) {
     });
 };
 
-// Remove de forma limpa o pedido finalizado da base do Firebase Realtime Database
 window.finalizeAndClearOrder = function(orderId) {
     if(confirm("Deseja marcar essa encomenda como concluída e entregue? Isto apagará o registro permanentemente do banco de dados.")) {
         database.ref('orders/' + orderId).remove().then(() => {
@@ -451,6 +502,7 @@ window.finalizeAndClearOrder = function(orderId) {
 
 function renderAdminGamesTable() {
     const tableBody = document.getElementById('admin-games-table');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
     catalogGames.forEach(game => {
         const tr = document.createElement('tr');
@@ -466,7 +518,7 @@ function renderAdminGamesTable() {
     });
 }
 
-function startEditGame(id) {
+window.startEditGame = function(id) {
     const game = catalogGames.find(g => g.id === id);
     if(game) {
         isEditing = true;
@@ -477,19 +529,20 @@ function startEditGame(id) {
         document.getElementById('game-unit').value = game.unit;
         document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
     }
-}
+};
 
-function deleteGame(id) {
+window.deleteGame = function(id) {
     if(confirm("Deseja excluir este jogo?")) {
         database.ref('games/' + id).remove();
     }
-}
+};
 
 function resetGameForm() {
     isEditing = false;
     currentEditId = null;
+    const form = document.getElementById('game-form');
+    if (form) form.reset();
     document.getElementById('form-title').innerText = "Cadastrar Novo Jogo";
-    document.getElementById('game-form').reset();
     document.getElementById('btn-cancel-edit').style.display = 'none';
 }
 
