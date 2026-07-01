@@ -26,8 +26,8 @@ let catalogGames = [];
 let userSelection = [];
 let isEditing = false;
 let currentEditId = null;
+let generatedPdfBase64 = ""; // Armazena o PDF gerado temporariamente para o usuário baixar
 
-// MAPEAMENTO DOS ELEMENTOS DAS SEÇÕES
 const sections = {
     welcome: document.getElementById('welcome-section'),
     builder: document.getElementById('game-selection-section'),
@@ -35,14 +35,13 @@ const sections = {
     admin: document.getElementById('admin-section')
 };
 
-// DISPARO AO CARREGAR O DOM DO NAVEGADOR
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
     setupEventListeners();
 });
 
 function initApp() {
-    // Monitor de autenticação persistente para a Área Admin
+    // Monitor de autenticação para a Área Admin
     auth.onAuthStateChanged(user => {
         if (user && user.email === 'admin@admin.com') {
             switchSection('admin');
@@ -54,7 +53,7 @@ function initApp() {
         }
     });
 
-    // Ouvinte em tempo real da lista base de jogos do banco Realtime Database
+    // Ouvinte em tempo real da lista base de jogos do Realtime Database
     database.ref('games').on('value', snapshot => {
         catalogGames = [];
         snapshot.forEach(childSnapshot => {
@@ -83,12 +82,11 @@ function setupEventListeners() {
         });
     });
 
-    // Retornar da tela de montagem para a tela de escolha dos Pendrives
     document.getElementById('btn-back-to-usb').addEventListener('click', () => {
         switchSection('welcome');
     });
 
-    // Gerenciamento Isolado de Abertura do Modal de Login do Admin
+    // Abertura do Modal de Login do Admin
     const loginModal = document.getElementById('login-modal');
     document.getElementById('btn-admin-modal').addEventListener('click', () => {
         loginModal.style.display = 'flex';
@@ -98,7 +96,6 @@ function setupEventListeners() {
         loginModal.style.display = 'none';
     });
     
-    // Submissão do Formulário de Login do Firebase
     document.getElementById('login-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const pass = document.getElementById('login-password').value;
@@ -107,19 +104,13 @@ function setupEventListeners() {
                 loginModal.style.display = 'none';
                 document.getElementById('login-password').value = '';
             })
-            .catch(err => {
-                alert("Falha ao autenticar administrador: " + err.message);
-            });
+            .catch(err => alert("Falha ao autenticar: " + err.message));
     });
 
-    // Desautenticação do Administrador
     document.getElementById('btn-admin-logout').addEventListener('click', () => {
-        auth.signOut().then(() => {
-            switchSection('welcome');
-        });
+        auth.signOut().then(() => switchSection('welcome'));
     });
 
-    // Alternância entre as abas internas do Painel Administrativo
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -129,14 +120,12 @@ function setupEventListeners() {
         });
     });
 
-    // Criação ou Edição de itens do catálogo via Painel Admin
+    // CRUD do Administrador - Salvar / Editar
     document.getElementById('game-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const title = document.getElementById('game-title').value;
         const sizeValue = parseFloat(document.getElementById('game-size').value);
         const unit = document.getElementById('game-unit').value;
-        
-        // Padroniza de forma interna a volumetria em GB para cálculos lineares
         const sizeInGB = unit === 'MB' ? sizeValue / 1024 : sizeValue;
 
         const gameData = {
@@ -147,88 +136,66 @@ function setupEventListeners() {
         };
 
         if (isEditing) {
-            database.ref('games/' + currentEditId).set(gameData)
-                .then(() => resetGameForm());
+            database.ref('games/' + currentEditId).set(gameData).then(() => resetGameForm());
         } else {
-            database.ref('games').push(gameData)
-                .then(() => resetGameForm());
+            database.ref('games').push(gameData).then(() => resetGameForm());
         }
     });
 
     document.getElementById('btn-cancel-edit').addEventListener('click', resetGameForm);
-
-    // Exportação e Importação de Cópias de Segurança em JSON
     document.getElementById('btn-export-json').addEventListener('click', exportDatabaseToJSON);
     document.getElementById('import-json').addEventListener('change', importDatabaseFromJSON);
 
-    // Finalização e envio da lista montada pelo Usuário
-    document.getElementById('btn-generate-list').addEventListener('click', finishAndSendList);
+    // Fluxo do Usuário: Gerar lista transforma a folha em PDF real e joga em Base64
+    document.getElementById('btn-generate-list').addEventListener('click', processAndSendPDFList);
 
-    // Manipulação da Visualização e Impressão do Modelo de Folha A4
-    document.getElementById('btn-view-a4').addEventListener('click', () => {
-        document.getElementById('a4-container').style.display = 'block';
-    });
-    document.getElementById('btn-close-a4').addEventListener('click', () => {
-        document.getElementById('a4-container').style.display = 'none';
-    });
-    document.getElementById('btn-print-a4').addEventListener('click', () => {
-        window.print();
+    // Ação do usuário baixar o PDF localmente na tela de sucesso
+    document.getElementById('btn-download-user-pdf').addEventListener('click', () => {
+        if(generatedPdfBase64) {
+            downloadPdfFromBase64(generatedPdfBase64, `Minha_Lista_PS2_${currentUsb.size}GB.pdf`);
+        }
     });
 }
 
-// ALTERNADOR GLOBAL DE VISIBILIDADE DAS TELAS
 function switchSection(sectionId) {
     Object.values(sections).forEach(s => s.classList.remove('active'));
     sections[sectionId].classList.add('active');
 }
 
-// RETORNA STRING FORMATADA DO TAMANHO DO JOGO
 function formatGameSizeText(game) {
     return `${game.displaySize} ${game.unit}`;
 }
 
-// RENDERIZAÇÃO DO CATÁLOGO DE JOGOS DISPONÍVEIS
 function renderCatalog() {
     const listContainer = document.getElementById('catalog-list');
     listContainer.innerHTML = '';
-
     if(catalogGames.length === 0) {
-        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Nenhum jogo disponível no catálogo.</p>';
+        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Catálogo vazio.</p>';
         return;
     }
-
     catalogGames.forEach(game => {
         const item = document.createElement('div');
         item.className = 'game-item';
         item.innerHTML = `
-            <div class="game-item-info">
-                <span class="title">${game.title}</span>
-                <span class="size">${formatGameSizeText(game)}</span>
-            </div>
+            <div class="game-item-info"><span class="title">${game.title}</span><span class="size">${formatGameSizeText(game)}</span></div>
             <button class="btn-primary" onclick="addGameToSelection('${game.id}')"><i class="fa-solid fa-plus"></i></button>
         `;
         listContainer.appendChild(item);
     });
 }
 
-// RENDERIZAÇÃO DA SELEÇÃO ATUAL DO USUÁRIO
 function renderUserSelection() {
     const listContainer = document.getElementById('user-selected-list');
     listContainer.innerHTML = '';
-
     if(userSelection.length === 0) {
-        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Nenhum jogo selecionado ainda.</p>';
+        listContainer.innerHTML = '<p style="padding:15px; color:#666;">Nenhum jogo selecionado.</p>';
         return;
     }
-
     userSelection.forEach((game, index) => {
         const item = document.createElement('div');
         item.className = 'game-item';
         item.innerHTML = `
-            <div class="game-item-info">
-                <span class="title">${game.title}</span>
-                <span class="size">${formatGameSizeText(game)}</span>
-            </div>
+            <div class="game-item-info"><span class="title">${game.title}</span><span class="size">${formatGameSizeText(game)}</span></div>
             <button class="btn-danger" onclick="removeGameFromSelection(${index})"><i class="fa-solid fa-trash"></i></button>
         `;
         listContainer.appendChild(item);
@@ -250,11 +217,9 @@ function removeGameFromSelection(index) {
     updateStorageMetrics();
 }
 
-// GERENCIADOR DE MÉTRICAS E VALIDAÇÃO DE ESTOURO DO TAMANHO MÁXIMO DO PENDRIVE
 function updateStorageMetrics() {
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
     const max = currentUsb.maxCapacity;
-
     const percentage = (totalUsedGB / max) * 100;
     const bar = document.getElementById('storage-bar');
     const text = document.getElementById('storage-text');
@@ -272,87 +237,114 @@ function updateStorageMetrics() {
     }
 }
 
-// GERAÇÃO DO DOCUMENTO EM BASE64 E SALVAMENTO DE ENCOMENDAS NO FIREBASE
-function finishAndSendList() {
+// --- GERAÇÃO COMPLETA DO PDF REAL (HTML2PDF) EM BASE64 PARA ENVIO ---
+function processAndSendPDFList() {
     const tableBody = document.getElementById('a4-table-body');
     tableBody.innerHTML = '';
     
     userSelection.forEach((game, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td style="font-weight: bold; text-align: left;">${game.title}</td>
-            <td>${formatGameSizeText(game)}</td>
+            <td style="text-align: center;">${index + 1}</td>
+            <td style="font-weight: bold;">${game.title}</td>
+            <td style="text-align: center;">${formatGameSizeText(game)}</td>
         `;
         tableBody.appendChild(tr);
     });
 
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
-    document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Capacidade real: ${currentUsb.maxCapacity}GB)`;
+    document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Teto Real: ${currentUsb.maxCapacity}GB)`;
     document.getElementById('a4-total-used').innerText = `${totalUsedGB.toFixed(2)} GB`;
 
-    // Processa o encapsulamento HTML puro da folha gerada e converte em String Base64 limpa
-    const htmlContent = document.getElementById('a4-container').innerHTML;
-    const base64List = btoa(unescape(encodeURIComponent(htmlContent)));
-
-    const orderPayload = {
-        timestamp: firebase.database.ServerValue.TIMESTAMP,
-        usbOriginalSize: `${currentUsb.size}GB`,
-        gamesCount: userSelection.length,
-        base64File: base64List
+    // Configuração do motor html2pdf para folha A4 perfeita
+    const element = document.getElementById('a4-pdf-template');
+    const opt = {
+        margin: 0,
+        filename: 'lista.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    database.ref('orders').push(orderPayload)
-        .then(() => {
+    // Altera o texto do botão para indicar carregamento
+    const btnGen = document.getElementById('btn-generate-list');
+    btnGen.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando PDF...';
+    btnGen.disabled = true;
+
+    html2pdf().set(opt).from(element).outputPdf('arraybuffer').then(pdfBuffer => {
+        // Converte o Buffer Binário do PDF diretamente em uma String Base64 limpa
+        let binary = '';
+        const bytes = new Uint8Array(pdfBuffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const base64PDF = window.btoa(binary);
+        
+        generatedPdfBase64 = base64PDF; // salva localmente na sessão do cliente
+
+        // Salva nas Encomendas do Administrador no Firebase
+        const orderPayload = {
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            usbOriginalSize: `${currentUsb.size}GB`,
+            gamesCount: userSelection.length,
+            pdfBase64File: base64PDF
+        };
+
+        database.ref('orders').push(orderPayload).then(() => {
             setupWhatsappButton();
             switchSection('success');
-        })
-        .catch(err => {
-            alert("Erro ao enviar a lista gerada para o servidor: " + err.message);
+        }).catch(err => {
+            alert("Erro ao sincronizar pedido com o servidor: " + err.message);
+            btnGen.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Gerar Lista Final (PDF)';
+            btnGen.disabled = false;
         });
+    });
 }
 
-// MONTAGEM DO LINK DIRETO COM TEXTO RESTRUTURADO PARA O WHATSAPP
 function setupWhatsappButton() {
     let msg = `*NOVA ENCOMENDA DE JOGOS - PS2*%0A`;
     msg += `---------------------------------%0A`;
-    msg += `*Pen Drive Selecionado:* ${currentUsb.size}GB%0A`;
+    msg += `*Pen Drive:* ${currentUsb.size}GB%0A`;
     msg += `*Quantidade de Jogos:* ${userSelection.length}%0A%0A`;
-    msg += `*LISTA DOS JOGOS SELECIONADOS:*%0A`;
-    
+    msg += `*JOGOS SOLICITADOS:*%0A`;
     userSelection.forEach((game, i) => {
         msg += `${i+1}. ${game.title} (${formatGameSizeText(game)})%0A`;
     });
-
     const url = `https://api.whatsapp.com/send?phone=${TELEFONE_WHATSAPP}&text=${msg}`;
-    document.getElementById('btn-whatsapp-share').onclick = () => {
-        window.open(url, '_blank');
-    };
+    document.getElementById('btn-whatsapp-share').onclick = () => window.open(url, '_blank');
 }
 
-// PROCESSAMENTO DE ENCOMENDAS RECEBIDAS DO BANCO NA ÁREA DO ADMINISTRADOR
+// --- FLUXO DO ADMINISTRADOR ---
 function loadAdminData() {
     database.ref('orders').on('value', snapshot => {
         const tableBody = document.getElementById('admin-orders-table');
         tableBody.innerHTML = '';
         
         if(!snapshot.exists()) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhuma lista encomendada localizada no momento.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Nenhuma nova encomenda na fila.</td></tr>';
             return;
         }
 
         snapshot.forEach(childSnapshot => {
             const order = childSnapshot.val();
+            const orderId = childSnapshot.key;
             const date = new Date(order.timestamp).toLocaleString('pt-BR');
             
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${date}</td>
-                <td><i class="fa-solid fa-usb"></i> Pen drive ${order.usbOriginalSize}</td>
+                <td><i class="fa-solid fa-usb" style="color: var(--primary-neon);"></i> ${order.usbOriginalSize}</td>
                 <td>${order.gamesCount} jogo(s)</td>
                 <td>
-                    <button class="btn-primary" onclick="downloadBase64Order('${childSnapshot.key}')">
-                        <i class="fa-solid fa-download"></i> Baixar Arquivo Lista
+                    <button class="btn-primary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="viewPdfFromAdmin('${orderId}')">
+                        <i class="fa-solid fa-eye"></i> Visualizar PDF
+                    </button>
+                    <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="downloadPdfFromAdmin('${orderId}')">
+                        <i class="fa-solid fa-download"></i> Baixar PDF
+                    </button>
+                    <button class="btn-danger" style="padding: 6px 12px; font-size: 0.85rem;" onclick="finalizeAndClearOrder('${orderId}')">
+                        <i class="fa-solid fa-circle-check"></i> Finalizar e Entregar
                     </button>
                 </td>
             `;
@@ -361,15 +353,71 @@ function loadAdminData() {
     });
 }
 
+// FUNÇÃO PARA O ADMIN REVISAR O PEDIDO EM PDF INSTANTANEAMENTE
+window.viewPdfFromAdmin = function(orderId) {
+    database.ref('orders/' + orderId).once('value').then(snapshot => {
+        if(snapshot.exists()) {
+            const order = snapshot.val();
+            const base64 = order.pdfBase64File;
+            
+            // Converte base64 para blob binário e abre em uma nova aba do navegador nativamente
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], {type: 'application/pdf'});
+            const fileURL = URL.createObjectURL(blob);
+            window.open(fileURL, '_blank');
+        }
+    });
+};
+
+// FUNÇÃO PARA O ADMIN BAIXAR O PDF LEGÍTIMO DIRETAMENTE
+window.downloadPdfFromAdmin = function(orderId) {
+    database.ref('orders/' + orderId).once('value').then(snapshot => {
+        if(snapshot.exists()) {
+            const order = snapshot.val();
+            downloadPdfFromBase64(order.pdfBase64File, `Pedido_PS2_${order.usbOriginalSize}_${orderId}.pdf`);
+        }
+    });
+};
+
+// BOTÃO FINALIZAR: REMOVE O PEDIDO DO FIREBASE BANCO DE DADOS PARA LIMPEZA DEFINITIVA
+window.finalizeAndClearOrder = function(orderId) {
+    if(confirm("Deseja marcar essa encomenda como concluída? Ela será excluída permanentemente do painel.")) {
+        database.ref('orders/' + orderId).remove().then(() => {
+            alert("Pedido finalizado com sucesso. Banco de dados limpo!");
+        }).catch(err => alert("Erro ao limpar registro: " + err.message));
+    }
+};
+
+// AUXILIAR DE DOWNLOAD GLOBAL DE PDF VIA BASE64
+function downloadPdfFromBase64(base64String, filename) {
+    const byteCharacters = atob(base64String);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], {type: 'application/pdf'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function renderAdminGamesTable() {
     const tableBody = document.getElementById('admin-games-table');
     tableBody.innerHTML = '';
-
     if(catalogGames.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum jogo localizado no catálogo base.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum jogo cadastrado.</td></tr>';
         return;
     }
-
     catalogGames.forEach(game => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -398,7 +446,7 @@ function startEditGame(id) {
 }
 
 function deleteGame(id) {
-    if(confirm("Deseja realmente remover este jogo da base de dados?")) {
+    if(confirm("Deseja excluir este jogo?")) {
         database.ref('games/' + id).remove();
     }
 }
@@ -411,26 +459,8 @@ function resetGameForm() {
     document.getElementById('btn-cancel-edit').style.display = 'none';
 }
 
-// FUNÇÃO PARA DOWNLOAD DA STRING BASE64 PURA EM ARQUIVO .TXT
-window.downloadBase64Order = function(orderId) {
-    database.ref('orders/' + orderId).once('value').then(snapshot => {
-        if(snapshot.exists()) {
-            const order = snapshot.val();
-            const element = document.createElement('a');
-            const file = new Blob([order.base64File], {type: 'text/plain'});
-            element.href = URL.createObjectURL(file);
-            element.download = `Lista_Base64_PS2_${orderId}.txt`;
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-        }
-    });
-};
-
-// EXPORTAR BACKUP COMPLETO DO BANCO EM JSON
 function exportDatabaseToJSON() {
-    if (catalogGames.length === 0) return alert("Não existem dados disponíveis para exportação.");
-    
+    if (catalogGames.length === 0) return alert("Sem dados.");
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(catalogGames, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
@@ -440,34 +470,27 @@ function exportDatabaseToJSON() {
     downloadAnchor.removeChild(downloadAnchor);
 }
 
-// IMPORTAR DADOS EXTERNOS VIA ARQUIVO JSON
 function importDatabaseFromJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const importedData = JSON.parse(e.target.result);
             if (Array.isArray(importedData)) {
-                if (confirm(`Confirmar inclusão de ${importedData.length} novos jogos no catálogo em lote?`)) {
+                if (confirm(`Importar ${importedData.length} jogos?`)) {
                     importedData.forEach(game => {
-                        const newGame = {
+                        database.ref('games').push({
                             title: game.title,
                             displaySize: game.displaySize,
                             unit: game.unit,
                             sizeGB: game.sizeGB
-                        };
-                        database.ref('games').push(newGame);
+                        });
                     });
-                    alert("Catálogo atualizado com sucesso!");
+                    alert("Importado com sucesso!");
                 }
-            } else {
-                alert("Formato incompatível detectado no JSON.");
             }
-        } catch (err) {
-            alert("Erro durante o processamento do arquivo JSON: " + err.message);
-        }
+        } catch (err) { alert("Erro: " + err.message); }
     };
     reader.readAsText(file);
 }
