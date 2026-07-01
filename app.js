@@ -20,13 +20,21 @@ const database = firebase.database();
 // CONFIGURAÇÃO DO NÚMERO DE DESTINO DO WHATSAPP DO PROPRIETÁRIO
 const TELEFONE_WHATSAPP = "5588988470190";
 
+// CONFIGURAÇÃO DE BACKUP INICIAL DE PENDRIVES (Caso o banco inicie totalmente vazio)
+const DEFAULT_USB_CONFIG = {
+    usb32: 28.5,
+    usb64: 58.3,
+    usb128: 116.5
+};
+
 // GERENCIAMENTO DE ESTADOS GERAIS
 let currentUsb = { size: 0, maxCapacity: 0 };
+let currentUsbLimits = { usb32: 28.5, usb64: 58.3, usb128: 116.5 }; // Carregado do banco
 let catalogGames = [];
 let userSelection = [];
 let isEditing = false;
 let currentEditId = null;
-let generatedJpgBase64 = ""; // Armazena a imagem gerada temporariamente na sessão
+let generatedJpgBase64 = "";
 
 const sections = {
     welcome: document.getElementById('welcome-section'),
@@ -47,11 +55,24 @@ function initApp() {
         if (user && user.email === 'admin@admin.com') {
             switchSection('admin');
             loadAdminData();
+            loadUsbSettingsIntoForm();
         } else {
             if(sections.admin && sections.admin.classList.contains('active')) {
                 switchSection('welcome');
             }
         }
+    });
+
+    // Ouvinte em tempo real para as capacidades reais dos pendrives salvas no Firebase
+    database.ref('settings/usbConfig').on('value', snapshot => {
+        if (snapshot.exists()) {
+            currentUsbLimits = snapshot.val();
+        } else {
+            // Cria os valores iniciais caso o banco esteja novo e limpo
+            database.ref('settings/usbConfig').set(DEFAULT_USB_CONFIG);
+            currentUsbLimits = DEFAULT_USB_CONFIG;
+        }
+        renderUsbCards(); // Redesenha a tela inicial com os novos tamanhos em tempo real
     });
 
     // Ouvinte em tempo real da lista base de jogos do banco Realtime Database
@@ -69,22 +90,6 @@ function initApp() {
 }
 
 function setupEventListeners() {
-    // Escuta o clique nos cards dos Pendrives da Home de forma segura
-    document.querySelectorAll('.usb-card').forEach(card => {
-        card.addEventListener('click', () => {
-            currentUsb.size = parseInt(card.dataset.size);
-            currentUsb.maxCapacity = parseFloat(card.dataset.max);
-            
-            const titleEl = document.getElementById('selected-usb-title');
-            if (titleEl) titleEl.innerText = `${currentUsb.size}GB`;
-            
-            userSelection = []; 
-            updateStorageMetrics();
-            renderUserSelection();
-            switchSection('builder');
-        });
-    });
-
     const btnBack = document.getElementById('btn-back-to-usb');
     if (btnBack) {
         btnBack.addEventListener('click', () => {
@@ -99,7 +104,7 @@ function setupEventListeners() {
 
     if (btnAdminModal && loginModal) {
         btnAdminModal.addEventListener('click', () => {
-            loginModal.style.style.display = 'flex';
+            loginModal.style.display = 'flex';
             const emailInput = document.getElementById('login-email');
             if(emailInput) emailInput.focus();
         });
@@ -190,6 +195,27 @@ function setupEventListeners() {
         });
     }
 
+    // Processamento do salvamento de capacidades dos pendrives pelo admin
+    const usbSettingsForm = document.getElementById('usb-settings-form');
+    if (usbSettingsForm) {
+        usbSettingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const real32 = parseFloat(document.getElementById('usb-real-32').value);
+            const real64 = parseFloat(document.getElementById('usb-real-64').value);
+            const real128 = parseFloat(document.getElementById('usb-real-128').value);
+
+            database.ref('settings/usbConfig').set({
+                usb32: real32,
+                usb64: real64,
+                usb128: real128
+            }).then(() => {
+                alert("Configurações de armazenamento atualizadas globalmente com sucesso!");
+            }).catch(err => {
+                alert("Erro ao gravar tamanhos: " + err.message);
+            });
+        });
+    }
+
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
     if (btnCancelEdit) btnCancelEdit.addEventListener('click', resetGameForm);
 
@@ -226,7 +252,86 @@ function setupEventListeners() {
     }
 }
 
-// MAPEAMENTO SEGURO DA NAVEGAÇÃO DE TECLADO (ENTER)
+// GERAÇÃO DINÂMICA DOS CARDS DOS PENDRIVES DE ACORDO COM O BANCO DE DADOS
+function renderUsbCards() {
+    const container = document.getElementById('usb-cards-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="usb-card" data-size="32" data-max="${currentUsbLimits.usb32}">
+            <div class="usb-vector">
+                <div class="usb-cap"></div>
+                <div class="usb-connector"><div class="usb-inside-lines"></div></div>
+                <div class="usb-body">
+                    <div class="usb-body-line"></div>
+                    <span class="usb-capacity-label">32GB</span>
+                </div>
+                <div class="usb-loop"></div>
+            </div>
+            <h3>32 GB</h3>
+            <span>Capacidade Real: ${currentUsbLimits.usb32} GB</span>
+        </div>
+
+        <div class="usb-card" data-size="64" data-max="${currentUsbLimits.usb32}">
+            <div class="usb-vector">
+                <div class="usb-cap"></div>
+                <div class="usb-connector"><div class="usb-inside-lines"></div></div>
+                <div class="usb-body" style="background: linear-gradient(135deg, #2c3e50 0%, #0f171e 100%);">
+                    <div class="usb-body-line"></div>
+                    <span class="usb-capacity-label">64GB</span>
+                </div>
+                <div class="usb-loop"></div>
+            </div>
+            <h3>64 GB</h3>
+            <span>Capacidade Real: ${currentUsbLimits.usb64} GB</span>
+        </div>
+
+        <div class="usb-card" data-size="128" data-max="${currentUsbLimits.usb128}">
+            <div class="usb-vector">
+                <div class="usb-cap"></div>
+                <div class="usb-connector"><div class="usb-inside-lines"></div></div>
+                <div class="usb-body" style="background: linear-gradient(135deg, #4a154b 0%, #1a051c 100%);">
+                    <div class="usb-body-line"></div>
+                    <span class="usb-capacity-label">128GB</span>
+                </div>
+                <div class="usb-loop"></div>
+            </div>
+            <h3>128 GB</h3>
+            <span>Capacidade Real: ${currentUsbLimits.usb128} GB</span>
+        </div>
+    `;
+
+    // Re-vincula os eventos de clique agora nos novos cards inseridos
+    container.querySelectorAll('.usb-card').forEach(card => {
+        card.addEventListener('click', () => {
+            currentUsb.size = parseInt(card.dataset.size);
+            
+            // Define dinamicamente o máximo baseado no estado sincronizado do banco
+            if (currentUsb.size === 32) currentUsb.maxCapacity = currentUsbLimits.usb32;
+            else if (currentUsb.size === 64) currentUsb.maxCapacity = currentUsbLimits.usb64;
+            else if (currentUsb.size === 128) currentUsb.maxCapacity = currentUsbLimits.usb128;
+
+            const titleEl = document.getElementById('selected-usb-title');
+            if (titleEl) titleEl.innerText = `${currentUsb.size}GB`;
+            
+            userSelection = []; 
+            updateStorageMetrics();
+            renderUserSelection();
+            switchSection('builder');
+        });
+    });
+}
+
+function loadUsbSettingsIntoForm() {
+    const r32 = document.getElementById('usb-real-32');
+    const r64 = document.getElementById('usb-real-64');
+    const r128 = document.getElementById('usb-real-128');
+
+    if(r32) r32.value = currentUsbLimits.usb32;
+    if(r64) r64.value = currentUsbLimits.usb64;
+    if(r128) r128.value = currentUsbLimits.usb128;
+}
+
 function setupKeyboardNavigation() {
     const emailInput = document.getElementById('login-email');
     const passwordInput = document.getElementById('login-password');
@@ -309,7 +414,6 @@ function updateStorageMetrics() {
     if (bar) bar.style.width = `${Math.min(percentage, 100)}%`;
     if (text) text.innerText = `${totalUsedGB.toFixed(2)} GB / ${max.toFixed(2)} GB usado`;
 
-    // Validação de campos obrigatórios
     const nameEl = document.getElementById('client-name');
     const surnameEl = document.getElementById('client-surname');
     const whatsappEl = document.getElementById('client-whatsapp');
@@ -332,7 +436,6 @@ function updateStorageMetrics() {
     }
 }
 
-// --- RENDEREZACAO E ENVIO DA IMAGEM REAL VIA CANVAS ---
 function processAndSendJPEGList() {
     const name = document.getElementById('client-name').value.trim();
     const surname = document.getElementById('client-surname').value.trim();
@@ -418,7 +521,6 @@ function setupWhatsappButton(name, whatsapp, city) {
     if (btnWpp) btnWpp.onclick = () => window.open(url, '_blank');
 }
 
-// --- CONTROLE PAINEL DO ADMINISTRADOR ---
 function loadAdminData() {
     database.ref('orders').on('value', snapshot => {
         const tableBody = document.getElementById('admin-orders-table');
