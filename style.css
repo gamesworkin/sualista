@@ -1,195 +1,547 @@
-/* Definições de cores e variáveis do sistema */
+/* CONFIGURAÇÕES GERAIS / TEMA GAMER */
 :root {
-    --background-dark: #0d0e12;
-    --background-card: #16171d;
-    --border-dark: #24262f;
-    --neon-green: #00ff66;
-    --neon-blue: #00e5ff;
-    --text-white: #ffffff;
-    --text-muted: #a3a5ae;
+    --bg-color: #0b0c10;
+    --card-bg: rgba(31, 40, 51, 0.6);
+    --primary-neon: #00f2fe;
+    --secondary-neon: #4facfe;
+    --accent-purple: #7f00ff;
+    --text-color: #c5c6c7;
+    --text-bright: #ffffff;
+    --danger: #ff4757;
+    --success: #2ed573;
+    --border-color: rgba(0, 242, 254, 0.2);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 body {
-    background-color: var(--background-dark);
-    color: var(--text-white);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(circle at 50% 50%, #1a103c 0%, #0b0c10 80%);
+    color: var(--text-color);
     min-height: 100vh;
-    padding: 20px;
-}
-
-/* Caixa principal do formulário */
-.auth-container {
-    background-color: var(--background-card);
-    border: 1px solid var(--border-dark);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 450px;
-    padding: 35px 25px;
-    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.6);
-}
-
-.main-title {
-    text-align: center;
-    font-size: 28px;
-    margin-bottom: 25px;
-    letter-spacing: 2px;
-}
-
-.main-title span {
-    color: var(--neon-green);
-}
-
-/* Sistema de Abas de Navegação */
-.auth-tabs {
-    display: flex;
-    border-bottom: 2px solid var(--border-dark);
-    margin-bottom: 30px;
-}
-
-.tab-button {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 15px;
-    font-weight: bold;
-    padding: 14px 0;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.tab-button.active {
-    color: var(--neon-green);
-    border-bottom: 3px solid var(--neon-green);
-    margin-bottom: -2px;
-}
-
-/* REGRA DE OURO: Esconde tudo por padrão e só mostra a seção que tiver a classe active */
-.form-section {
-    display: none !important;
-}
-
-.form-section.active {
-    display: block !important;
-}
-
-/* Estruturação dos campos internos */
-.form-group {
-    margin-bottom: 20px;
-    width: 100%;
-}
-
-/* Resolve o problema de esmagamento horizontal no mobile */
-.form-group-row {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-    width: 100%;
-}
-
-.form-group-column {
-    flex: 1;
     display: flex;
     flex-direction: column;
 }
 
-label {
-    display: block;
-    font-size: 11px;
-    text-transform: uppercase;
+/* HEADER */
+header {
+    background: rgba(11, 12, 16, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--border-color);
+    padding: 15px 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 800;
     letter-spacing: 1px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    font-weight: 600;
-    text-align: left;
+    color: var(--text-bright);
 }
 
-input {
-    width: 100%;
-    background-color: var(--background-dark);
-    border: 1px solid var(--border-dark);
+.logo span {
+    color: var(--primary-neon);
+    text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+}
+
+/* BOTÕES GERAIS */
+button, .label-file {
+    padding: 10px 20px;
     border-radius: 6px;
-    padding: 14px;
-    color: var(--text-white);
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.3s ease;
-}
-
-input:focus {
-    border-color: var(--neon-green);
-}
-
-/* Botões Estilizados */
-.btn-submit-neon {
-    width: 100%;
-    background: none;
-    border: 2px solid var(--neon-green);
-    border-radius: 6px;
-    color: var(--neon-green);
-    font-size: 14px;
+    border: none;
     font-weight: bold;
-    text-transform: uppercase;
-    padding: 15px;
     cursor: pointer;
-    letter-spacing: 1px;
     transition: all 0.3s ease;
-    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
 }
 
-.btn-submit-neon:hover {
-    background-color: var(--neon-green);
-    color: var(--background-dark);
-    box-shadow: 0px 0px 20px rgba(0, 255, 102, 0.5);
+.btn-primary {
+    background: linear-gradient(45deg, var(--secondary-neon), var(--primary-neon));
+    color: #000;
+}
+.btn-primary:hover:not(:disabled) {
+    box-shadow: 0 0 15px var(--primary-neon);
+    transform: translateY(-2px);
+}
+.btn-primary:disabled {
+    background: #444;
+    color: #888;
+    cursor: not-allowed;
 }
 
-.btn-submit-neon.btn-admin-color {
-    border-color: var(--neon-blue);
-    color: var(--neon-blue);
+.btn-secondary {
+    background: var(--card-bg);
+    color: var(--text-bright);
+    border: 1px solid var(--border-color);
+}
+.btn-secondary:hover {
+    background: rgba(0, 242, 254, 0.1);
+    border-color: var(--primary-neon);
 }
 
-.btn-submit-neon.btn-admin-color:hover {
-    background-color: var(--neon-blue);
-    color: var(--background-dark);
-    box-shadow: 0px 0px 20px rgba(0, 229, 255, 0.5);
+.btn-danger { background-color: var(--danger); color: #fff; }
+.btn-danger:hover { box-shadow: 0 0 10px var(--danger); }
+
+.btn-whatsapp {
+    background-color: #25d366;
+    color: white;
+    font-size: 1.1rem;
+}
+.btn-whatsapp:hover { box-shadow: 0 0 15px #25d366; }
+
+/* CONTAINERS */
+.container {
+    flex: 1;
+    padding: 30px 5%;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-/* Links de alternância */
-.toggle-form-text {
+.view-section {
+    display: none;
+}
+.view-section.active {
+    display: block;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* TELA DE BOAS VINDAS & PENDRIVES FLOATING */
+.welcome-text {
     text-align: center;
-    font-size: 13px;
-    color: var(--text-muted);
+    margin-bottom: 50px;
+}
+.welcome-text h1 {
+    font-size: 2.5rem;
+    color: var(--text-bright);
+    margin-bottom: 15px;
+    text-shadow: 0 0 15px rgba(255,255,255,0.1);
+}
+
+.usb-container {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
     margin-top: 20px;
 }
 
-.toggle-form-text span {
-    color: var(--neon-green);
-    text-decoration: none;
-    font-weight: bold;
+.usb-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    padding: 40px 30px;
+    width: 250px;
+    text-align: center;
     cursor: pointer;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: float 4s ease-in-out infinite;
 }
 
-.toggle-form-text span:hover {
-    text-decoration: underline;
+.usb-card:nth-child(2) { animation-delay: 1s; }
+.usb-card:nth-child(3) { animation-delay: 2s; }
+
+.usb-card:hover {
+    border-color: var(--primary-neon);
+    box-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+    transform: scale(1.05) translateY(-5px);
 }
 
-/* Responsividade Adaptativa para Celulares Pequenos */
-@media (max-width: 480px) {
-    .form-group-row {
-        flex-direction: column;
-        gap: 20px;
-        margin-bottom: 0;
+.usb-icon {
+    font-size: 4rem;
+    color: var(--primary-neon);
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(0, 242, 254, 0.6);
+}
+
+.usb-card h3 {
+    font-size: 1.8rem;
+    color: var(--text-bright);
+    margin-bottom: 10px;
+}
+
+/* DASHBOARD DO PROCESSO DE SELEÇÃO */
+#btn-back-to-usb { margin-bottom: 25px; }
+
+.storage-info {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.progress-container {
+    background: #111;
+    border-radius: 20px;
+    height: 25px;
+    width: 100%;
+    margin: 15px 0;
+    overflow: hidden;
+    border: 1px solid #333;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--secondary-neon), var(--primary-neon));
+    box-shadow: 0 0 10px var(--primary-neon);
+    transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+.progress-bar.overlimit {
+    background: linear-gradient(90deg, #ff4757, #ff6b81) !important;
+    box-shadow: 0 0 15px var(--danger) !important;
+}
+
+/* GRID DE JOGOS */
+.game-builder-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.catalog-box, .user-list-box {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    height: 550px;
+}
+
+.catalog-box h3, .user-list-box h3 {
+    color: var(--text-bright);
+    margin-bottom: 15px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.game-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.game-item {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid var(--secondary-neon);
+    transition: background 0.2s;
+}
+.game-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.game-item-info .title {
+    color: var(--text-bright);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 3px;
+}
+.game-item-info .size {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.user-list-box .game-item {
+    border-left-color: var(--accent-purple);
+}
+
+#btn-generate-list {
+    margin-top: 15px;
+    width: 100%;
+    padding: 15px;
+}
+
+/* TELA DE SUCESSO */
+.success-card {
+    background: var(--card-bg);
+    max-width: 600px;
+    margin: 50px auto;
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    border: 1px solid var(--success);
+    box-shadow: 0 0 20px rgba(46, 213, 115, 0.2);
+}
+.success-icon {
+    font-size: 4.5rem;
+    color: var(--success);
+    margin-bottom: 20px;
+}
+.success-card h2 { color: var(--text-bright); margin-bottom: 15px; }
+.success-card p { margin-bottom: 30px; }
+.success-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* ÁREA DO ADMIN */
+.admin-header-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.admin-header-box h2 { color: var(--text-bright); }
+
+.admin-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #222;
+}
+.tab-btn {
+    background: transparent;
+    color: var(--text-color);
+    border-radius: 8px 8px 0 0;
+    border: none;
+    padding: 12px 25px;
+}
+.tab-btn.active {
+    background: var(--card-bg);
+    color: var(--primary-neon);
+    border: 1px solid var(--border-color);
+    border-bottom: 2px solid var(--bg-color);
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 30px;
+}
+
+.form-card {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+    height: fit-content;
+}
+.form-card h3 { color: var(--text-bright); margin-bottom: 20px; }
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+.input-group label {
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+.input-group input, .input-group select {
+    padding: 10px;
+    background: #111;
+    border: 1px solid #444;
+    color: #fff;
+    border-radius: 5px;
+}
+.input-group input:focus {
+    border-color: var(--primary-neon);
+    outline: none;
+}
+.input-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 15px;
+}
+#btn-save-game { width: 100%; }
+
+.backup-actions {
+    margin-top: 30px;
+    border-top: 1px solid #333;
+    padding-top: 20px;
+}
+.backup-actions h4 { margin-bottom: 15px; color: var(--text-bright); }
+.backup-actions button, .backup-actions .label-file { width: 100%; margin-bottom: 10px; }
+
+/* TABELAS */
+.admin-list-box {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 10px;
+}
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    text-align: left;
+}
+th, td {
+    padding: 12px;
+    border-bottom: 1px solid #222;
+}
+th { color: var(--text-bright); background-color: rgba(0,0,0,0.4); }
+tr:hover td { background-color: rgba(255,255,255,0.02); }
+
+/* MODAL */
+.modal {
+    display: none;
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: #151922;
+    border: 1px solid var(--primary-neon);
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+}
+.close-modal {
+    position: absolute;
+    top: 15px; right: 20px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #fff;
+}
+
+/* --- FORMATAÇÃO DA LISTA DE RESPEITO ESTILO PAPEL A4 (MULTIPLATAFORMA) --- */
+.a4-wrapper {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #333;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 40px 10px;
+    box-sizing: border-box;
+}
+
+/* Força proporção A4 exata visualmente em telas e previne quebras feias */
+.a4-page {
+    background: #fff;
+    color: #000;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 25mm 20mm;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.a4-header {
+    text-align: center;
+    border-bottom: 3px double #000;
+    padding-bottom: 15px;
+    margin-bottom: 30px;
+}
+.a4-header h1 { font-size: 24pt; font-weight: bold; font-family: 'Courier New', Courier, monospace; letter-spacing: 2px;}
+.a4-header p { font-size: 12pt; margin-top: 5px; }
+
+.a4-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+}
+.a4-table th, .a4-table td {
+    border: 1px solid #000 !important;
+    padding: 8px 12px !important;
+    color: #000 !important;
+    background: transparent !important;
+}
+.a4-table th { background-color: #f2f2f2 !important; font-weight: bold; }
+.a4-table tr:nth-child(even) { background-color: #fafafa !important; }
+
+.a4-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #000;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10pt;
+    font-style: italic;
+}
+
+.no-print {
+    position: fixed;
+    top: 15px;
+    z-index: 1001;
+}
+#btn-close-a4 { right: 15px; }
+#btn-print-a4 { right: 230px; }
+
+/* ANIMAÇÕES */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* RESPONSIVIDADE EXTREMA PARA CELULAR */
+@media (max-width: 900px) {
+    .game-builder-grid, .admin-grid {
+        grid-template-columns: 1fr;
     }
-    .form-group-column {
-        margin-bottom: 20px;
+    .catalog-box, .user-list-box {
+        height: 400px;
     }
+}
+
+@media (max-width: 600px) {
+    header { flex-direction: column; gap: 15px; text-align: center; }
+    .welcome-text h1 { font-size: 1.8rem; }
+    .usb-card { width: 100%; }
+    
+    /* Adaptação móvel para simular a visualização proporcional da folha A4 sem deformar */
+    .a4-page {
+        width: 100%;
+        min-height: auto;
+        padding: 15mm 10mm;
+        font-size: 9pt;
+    }
+    .a4-header h1 { font-size: 16pt; }
+    #btn-print-a4 { right: auto; left: 15px; }
+}
+
+/* PRINT MEDIA (Força regras rígidas na geração do PDF) */
+@media print {
+    body * { visibility: hidden; }
+    .a4-wrapper, .a4-wrapper * { visibility: visible; }
+    .a4-wrapper { position: absolute; left: 0; top: 0; width: 210mm; height: 100%; padding: 0; background: transparent; }
+    .a4-page { border: none; box-shadow: none; margin: 0; padding: 20mm 15mm; width: 210mm; min-height: 297mm;}
+    .no-print { display: none !important; }
 }
