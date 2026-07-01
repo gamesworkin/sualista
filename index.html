@@ -1,92 +1,221 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GameList Pro - Painel de Acesso</title>
+    <title>PS2 USB Manager - Monte sua Lista</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
-    <div class="auth-container">
-        <h1 class="main-title">GAMELIST <span>PRO</span></h1>
-        
-        <div class="auth-tabs" id="navigation-tabs">
-            <button type="button" class="tab-button active" id="tab-btn-cliente">Acesso Cliente</button>
-            <button type="button" class="tab-button" id="tab-btn-admin">Painel Admin</button>
-        </div>
+    <header>
+        <div class="logo"><i class="fa-solid fa-gamepad"></i> PS2 <span>USB Manager</span></div>
+        <button id="btn-admin-modal" class="btn-secondary"><i class="fa-solid fa-lock"></i> Área Restrita</button>
+    </header>
 
-        <div id="section-login-cliente" class="form-section active">
-            <form id="form-cliente-login" onsubmit="event.preventDefault();">
-                <div class="form-group">
-                    <label for="cliente-username">Username do Usuário</label>
-                    <input type="text" id="cliente-username" placeholder="Digite seu username cadastrado" required>
+    <main class="container">
+        <section id="welcome-section" class="view-section active">
+            <div class="welcome-text">
+                <h1>Bem-vindo ao PS2 USB Manager!</h1>
+                <p>Escolha o tamanho do seu Pen Drive flutuante abaixo para começar a montar sua lista de jogos perfeita.</p>
+            </div>
+            
+            <div class="usb-container">
+                <div class="usb-card" data-size="32" data-max="28.5">
+                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <h3>32 GB</h3>
+                    <span>Capacidade Real: 28.5 GB</span>
                 </div>
-                <div class="form-group">
-                    <label for="cliente-senha">Senha Master Corporativa</label>
-                    <input type="password" id="cliente-senha" placeholder="Digite a senha master" required>
+                <div class="usb-card" data-size="64" data-max="58.3">
+                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <h3>64 GB</h3>
+                    <span>Capacidade Real: 58.3 GB</span>
                 </div>
-                <button type="submit" class="btn-submit-neon">Entrar no Sistema</button>
-                <p class="toggle-form-text">Ainda não tem uma conta ativa? <span id="link-abrir-cadastro">Cadastre-se aqui</span></p>
+                <div class="usb-card" data-size="128" data-max="116.5">
+                    <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
+                    <h3>128 GB</h3>
+                    <span>Capacidade Real: 116.5 GB</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="game-selection-section" class="view-section">
+            <button id="btn-back-to-usb" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Mudar Pen Drive</button>
+            
+            <div class="dashboard">
+                <div class="storage-info">
+                    <h2>Pen Drive Selecionado: <span id="selected-usb-title">0GB</span></h2>
+                    <div class="progress-container">
+                        <div id="storage-bar" class="progress-bar"></div>
+                    </div>
+                    <p id="storage-text">0.00 GB / 0.00 GB usado</p>
+                </div>
+
+                <div class="game-builder-grid">
+                    <div class="catalog-box">
+                        <h3><i class="fa-solid fa-list-ul"></i> Jogos Disponíveis</h3>
+                        <div id="catalog-list" class="game-list">
+                            </div>
+                    </div>
+
+                    <div class="user-list-box">
+                        <h3><i class="fa-solid fa-cart-shopping"></i> Sua Seleção</h3>
+                        <div id="user-selected-list" class="game-list">
+                            </div>
+                        <button id="btn-generate-list" class="btn-primary" disabled><i class="fa-solid fa-file-invoice"></i> Gerar Lista Final</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="success-section" class="view-section">
+            <div class="success-card">
+                <i class="fa-solid fa-circle-check success-icon"></i>
+                <h2>Sua lista foi enviada com sucesso!</h2>
+                <p>O administrador já recebeu o seu pedido. Agora você pode compartilhá-la diretamente no WhatsApp ou visualizar sua folha de impressão.</p>
+                <div class="success-actions">
+                    <button id="btn-whatsapp-share" class="btn-whatsapp"><i class="fa-brands fa-whatsapp"></i> Compartilhar no WhatsApp</button>
+                    <button id="btn-view-a4" class="btn-primary"><i class="fa-solid fa-eye"></i> Ver Lista Estilo A4</button>
+                    <button onclick="window.location.reload()" class="btn-secondary">Criar Nova Lista</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="admin-section" class="view-section">
+            <div class="admin-header-box">
+                <h2><i class="fa-solid fa-sliders"></i> Painel do Administrador</h2>
+                <div>
+                    <button id="btn-admin-logout" class="btn-danger">Sair do Modo Admin</button>
+                </div>
+            </div>
+
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="tab-games">Gerenciar Catálogo</button>
+                <button class="tab-btn" data-tab="tab-orders" id="tab-orders-trigger">Listas Encomendadas</button>
+            </div>
+
+            <div id="tab-games" class="tab-content active">
+                <div class="admin-grid">
+                    <div class="form-card">
+                        <h3 id="form-title">Cadastrar Novo Jogo</h3>
+                        <form id="game-form">
+                            <input type="hidden" id="game-id">
+                            <div class="input-group">
+                                <label>Título do Jogo</label>
+                                <input type="text" id="game-title" required placeholder="Ex: God of War II">
+                            </div>
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label>Tamanho</label>
+                                    <input type="number" step="0.01" id="game-size" required placeholder="Ex: 4.3">
+                                </div>
+                                <div class="input-group">
+                                    <label>Unidade</label>
+                                    <select id="game-unit">
+                                        <option value="GB">GB</option>
+                                        <option value="MB">MB</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" id="btn-save-game">Salvar Jogo</button>
+                            <button type="button" class="btn-secondary" id="btn-cancel-edit" style="display:none; margin-top: 10px;">Cancelar Edição</button>
+                        </form>
+
+                        <div class="backup-actions">
+                            <h4>Backup dos Dados</h4>
+                            <button id="btn-export-json" class="btn-secondary"><i class="fa-solid fa-download"></i> Exportar JSON</button>
+                            <label for="import-json" class="btn-secondary label-file"><i class="fa-solid fa-upload"></i> Importar JSON</label>
+                            <input type="file" id="import-json" accept=".json" style="display:none;">
+                        </div>
+                    </div>
+
+                    <div class="admin-list-box">
+                        <h3>Jogos Cadastrados</h3>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Título</th>
+                                        <th>Tamanho</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-games-table">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-orders" class="tab-content">
+                <h3>Últimas Listas Enviadas por Usuários</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Pen Drive original</th>
+                                <th>Qtd Jogos</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-orders-table">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2><i class="fa-solid fa-shield-halved"></i> Login Administrativo</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="login-email" value="admin@admin.com" disabled>
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="login-password" required placeholder="Digite sua senha do Firebase">
+                </div>
+                <button type="submit" class="btn-primary">Entrar no Painel</button>
             </form>
         </div>
-
-        <div id="section-cadastro-cliente" class="form-section">
-            <form id="form-cliente-cadastro" onsubmit="event.preventDefault();">
-                <div class="form-group-row">
-                    <div class="form-group-column">
-                        <label for="cadastro-username">Username Único</label>
-                        <input type="text" id="cadastro-username" placeholder="Exemplo: jorginho" required>
-                    </div>
-                    <div class="form-group-column">
-                        <label for="cadastro-nome">Primeiro Nome</label>
-                        <input type="text" id="cadastro-nome" placeholder="Digite seu nome" required>
-                    </div>
-                </div>
-
-                <div class="form-group-row">
-                    <div class="form-group-column">
-                        <label for="cadastro-sobrenome">Sobrenome</label>
-                        <input type="text" id="cadastro-sobrenome" placeholder="Digite seu sobrenome" required>
-                    </div>
-                    <div class="form-group-column">
-                        <label for="cadastro-whatsapp">Número do WhatsApp</label>
-                        <input type="tel" id="cadastro-whatsapp" placeholder="Exemplo: 11999999999" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="cadastro-cidade">Cidade ou Região</label>
-                    <input type="text" id="cadastro-cidade" placeholder="Digite sua cidade de residência" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="cadastro-senha-master">Senha Master de Validação</label>
-                    <input type="password" id="cadastro-senha-master" placeholder="Digite a senha master para liberar" required>
-                </div>
-
-                <button type="submit" class="btn-submit-neon">Finalizar Meu Cadastro</button>
-                <p class="toggle-form-text">Já possui uma conta criada? <span id="link-voltar-login">Faça Login</span></p>
-            </form>
-        </div>
-
-        <div id="section-login-admin" class="form-section">
-            <form id="form-admin-login" onsubmit="event.preventDefault();">
-                <div class="form-group">
-                    <label for="admin-email">E-mail do Administrador</label>
-                    <input type="email" id="admin-email" placeholder="admin@sistema.com" required>
-                </div>
-                <div class="form-group">
-                    <label for="admin-senha">Senha de Acesso Admin</label>
-                    <input type="password" id="admin-senha" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn-submit-neon btn-admin-color">Acessar Painel Master</button>
-            </form>
-        </div>
-
     </div>
 
-    <script type="module" src="app.js"></script>
+    <div id="a4-container" class="a4-wrapper">
+        <button id="btn-close-a4" class="btn-danger no-print"><i class="fa-solid fa-xmark"></i> Fechar Pré-visualização</button>
+        <button id="btn-print-a4" class="btn-primary no-print"><i class="fa-solid fa-print"></i> Imprimir / Salvar PDF</button>
+        
+        <div class="a4-page">
+            <div class="a4-header">
+                <h1>MINHA LISTA DE JOGOS PS2</h1>
+                <p>Configuração do Pen Drive Selecionado: <span id="a4-usb-size">--</span></p>
+            </div>
+            <table class="a4-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%">Nº</th>
+                        <th style="width: 70%">Nome do Jogo</th>
+                        <th style="width: 20%">Tamanho</th>
+                    </tr>
+                </thead>
+                <tbody id="a4-table-body">
+                    </tbody>
+            </table>
+            <div class="a4-footer">
+                <p>Espaço Total Utilizado: <span id="a4-total-used">0 GB</span></p>
+                <p>Gerado automaticamente por PS2 USB Manager</p>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
