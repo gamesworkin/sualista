@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PS2 USB Manager - Monte sua Lista</title>
+    <title>Faça sua própria lista - PS2</title>
+    <link rel="shortcut icon" href="fav.ico" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -13,29 +14,32 @@
 <body>
 
     <header>
-        <div class="logo"><i class="fa-solid fa-gamepad"></i> PS2 <span>USB Manager</span></div>
+        <div class="logo"><i class="fa-solid fa-gamepad"></i> Faça sua <span>própria lista</span></div>
         <button id="btn-admin-modal" class="btn-secondary"><i class="fa-solid fa-lock"></i> Área Restrita</button>
     </header>
 
     <main class="container">
         <section id="welcome-section" class="view-section active">
             <div class="welcome-text">
-                <h1>Bem-vindo ao PS2 USB Manager!</h1>
+                <h1>Bem-vindo ao Faça sua própria lista!</h1>
                 <p>Escolha o tamanho do seu Pen Drive flutuante abaixo para começar a montar sua lista de jogos perfeita.</p>
             </div>
             
             <div class="usb-container">
                 <div class="usb-card" data-size="32" data-max="28.5">
+                    <div class="usb-glow"></div>
                     <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
                     <h3>32 GB</h3>
                     <span>Capacidade Real: 28.5 GB</span>
                 </div>
                 <div class="usb-card" data-size="64" data-max="58.3">
+                    <div class="usb-glow"></div>
                     <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
                     <h3>64 GB</h3>
                     <span>Capacidade Real: 58.3 GB</span>
                 </div>
                 <div class="usb-card" data-size="128" data-max="116.5">
+                    <div class="usb-glow"></div>
                     <div class="usb-icon"><i class="fa-solid fa-usb"></i></div>
                     <h3>128 GB</h3>
                     <span>Capacidade Real: 116.5 GB</span>
@@ -185,7 +189,7 @@
                     <label>Senha</label>
                     <input type="password" id="login-password" required placeholder="Digite sua senha do Firebase">
                 </div>
-                <button type="submit" class="btn-primary">Entrar no Painel</button>
+                <button type="submit" class="btn-primary">Entrar no Panel</button>
             </form>
         </div>
     </div>
@@ -212,10 +216,11 @@
             </table>
             <div class="a4-footer">
                 <p>Espaço Total Utilizado: <span id="a4-total-used">0 GB</span></p>
-                <p>Gerado automaticamente por PS2 USB Manager</p>
+                <p>Gerado automaticamente por Faça sua própria lista</p>
             </div>
         </div>
     </div>
 
+    <script src="app.js"></script>
 </body>
 </html>
