@@ -1,6 +1,6 @@
 // ==========================================
 // CONFIGURAÇÕES DO CONFIG DO FIREBASE
-// Substitua pelo objeto fornecido no seu console Firebase!
+// Substitua obrigatoriamente pelas credenciais do seu Console Firebase
 // ==========================================
 const firebaseConfig = {
     apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
@@ -12,22 +12,22 @@ const firebaseConfig = {
     appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
 };
 
-// Inicializa o Firebase
+// Inicialização segura das instâncias do Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const database = firebase.database();
 
-// CONFIGURAÇÃO FIXA DO PROPRIETÁRIO
+// CONFIGURAÇÃO DO NÚMERO DE DESTINO DO WHATSAPP DO PROPRIETÁRIO
 const TELEFONE_WHATSAPP = "5588988470190";
 
-// VARIÁVEIS DE ESTADO DA APLICAÇÃO
+// GERENCIAMENTO DE ESTADOS GERAIS
 let currentUsb = { size: 0, maxCapacity: 0 };
 let catalogGames = [];
 let userSelection = [];
 let isEditing = false;
 let currentEditId = null;
 
-// ELEMENTOS DOM
+// MAPEAMENTO DOS ELEMENTOS DAS SEÇÕES
 const sections = {
     welcome: document.getElementById('welcome-section'),
     builder: document.getElementById('game-selection-section'),
@@ -35,27 +35,26 @@ const sections = {
     admin: document.getElementById('admin-section')
 };
 
-// Inicializador
+// DISPARO AO CARREGAR O DOM DO NAVEGADOR
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
     setupEventListeners();
 });
 
 function initApp() {
-    // Escuta mudanças de autenticação do Admin
+    // Monitor de autenticação persistente para a Área Admin
     auth.onAuthStateChanged(user => {
         if (user && user.email === 'admin@admin.com') {
             switchSection('admin');
             loadAdminData();
         } else {
-            // Se não logado, volta para a home
             if(sections.admin.classList.contains('active')) {
                 switchSection('welcome');
             }
         }
     });
 
-    // Carrega catálogo base em tempo real
+    // Ouvinte em tempo real da lista base de jogos do banco Realtime Database
     database.ref('games').on('value', snapshot => {
         catalogGames = [];
         snapshot.forEach(childSnapshot => {
@@ -70,47 +69,57 @@ function initApp() {
 }
 
 function setupEventListeners() {
-    // Escolha do Pen drive
+    // Escuta o clique nos cards dos Pendrives da Home
     document.querySelectorAll('.usb-card').forEach(card => {
         card.addEventListener('click', () => {
             currentUsb.size = parseInt(card.dataset.size);
             currentUsb.maxCapacity = parseFloat(card.dataset.max);
             
             document.getElementById('selected-usb-title').innerText = `${currentUsb.size}GB`;
-            userSelection = []; // limpa seleção antiga
+            userSelection = []; 
             updateStorageMetrics();
             renderUserSelection();
             switchSection('builder');
         });
     });
 
-    // Voltar da montagem para tela inicial
+    // Retornar da tela de montagem para a tela de escolha dos Pendrives
     document.getElementById('btn-back-to-usb').addEventListener('click', () => {
         switchSection('welcome');
     });
 
-    // Modais e Login
-    const modal = document.getElementById('login-modal');
-    document.getElementById('btn-admin-modal').addEventListener('click', () => modal.style.display = 'flex');
-    document.querySelector('.close-modal').addEventListener('click', () => modal.style.display = 'none');
+    // Gerenciamento Isolado de Abertura do Modal de Login do Admin
+    const loginModal = document.getElementById('login-modal');
+    document.getElementById('btn-admin-modal').addEventListener('click', () => {
+        loginModal.style.display = 'flex';
+    });
     
+    document.querySelector('.close-modal').addEventListener('click', () => {
+        loginModal.style.display = 'none';
+    });
+    
+    // Submissão do Formulário de Login do Firebase
     document.getElementById('login-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const pass = document.getElementById('login-password').value;
         auth.signInWithEmailAndPassword('admin@admin.com', pass)
             .then(() => {
-                modal.style.display = 'none';
+                loginModal.style.display = 'none';
                 document.getElementById('login-password').value = '';
             })
-            .catch(err => alert("Senha inválida ou erro de conexão: " + err.message));
+            .catch(err => {
+                alert("Falha ao autenticar administrador: " + err.message);
+            });
     });
 
-    // Logout do Admin
+    // Desautenticação do Administrador
     document.getElementById('btn-admin-logout').addEventListener('click', () => {
-        auth.signOut().then(() => switchSection('welcome'));
+        auth.signOut().then(() => {
+            switchSection('welcome');
+        });
     });
 
-    // Admin - Troca de Abas
+    // Alternância entre as abas internas do Painel Administrativo
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -120,14 +129,14 @@ function setupEventListeners() {
         });
     });
 
-    // Admin - Salvar / Editar Jogo
+    // Criação ou Edição de itens do catálogo via Painel Admin
     document.getElementById('game-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const title = document.getElementById('game-title').value;
         const sizeValue = parseFloat(document.getElementById('game-size').value);
         const unit = document.getElementById('game-unit').value;
         
-        // Converte tudo nativamente para GB para simplificar métricas no Database, mas guarda o rótulo original
+        // Padroniza de forma interna a volumetria em GB para cálculos lineares
         const sizeInGB = unit === 'MB' ? sizeValue / 1024 : sizeValue;
 
         const gameData = {
@@ -148,14 +157,14 @@ function setupEventListeners() {
 
     document.getElementById('btn-cancel-edit').addEventListener('click', resetGameForm);
 
-    // Backup e Importação JSON
+    // Exportação e Importação de Cópias de Segurança em JSON
     document.getElementById('btn-export-json').addEventListener('click', exportDatabaseToJSON);
     document.getElementById('import-json').addEventListener('change', importDatabaseFromJSON);
 
-    // Fluxo Final do Usuário - Botão Gerar Lista (Envia e abre opções)
+    // Finalização e envio da lista montada pelo Usuário
     document.getElementById('btn-generate-list').addEventListener('click', finishAndSendList);
 
-    // Compartilhamento e A4 Visualização
+    // Manipulação da Visualização e Impressão do Modelo de Folha A4
     document.getElementById('btn-view-a4').addEventListener('click', () => {
         document.getElementById('a4-container').style.display = 'block';
     });
@@ -167,18 +176,18 @@ function setupEventListeners() {
     });
 }
 
-// MUDANÇA DE SEÇÃO
+// ALTERNADOR GLOBAL DE VISIBILIDADE DAS TELAS
 function switchSection(sectionId) {
     Object.values(sections).forEach(s => s.classList.remove('active'));
     sections[sectionId].classList.add('active');
 }
 
-// FORMATAÇÃO DE CAPACIDADE DE EXIBIÇÃO
+// RETORNA STRING FORMATADA DO TAMANHO DO JOGO
 function formatGameSizeText(game) {
     return `${game.displaySize} ${game.unit}`;
 }
 
-// CARREGAR E RENDERIZAR INTERFACES DE USUÁRIOS
+// RENDERIZAÇÃO DO CATÁLOGO DE JOGOS DISPONÍVEIS
 function renderCatalog() {
     const listContainer = document.getElementById('catalog-list');
     listContainer.innerHTML = '';
@@ -202,6 +211,7 @@ function renderCatalog() {
     });
 }
 
+// RENDERIZAÇÃO DA SELEÇÃO ATUAL DO USUÁRIO
 function renderUserSelection() {
     const listContainer = document.getElementById('user-selected-list');
     listContainer.innerHTML = '';
@@ -240,6 +250,7 @@ function removeGameFromSelection(index) {
     updateStorageMetrics();
 }
 
+// GERENCIADOR DE MÉTRICAS E VALIDAÇÃO DE ESTOURO DO TAMANHO MÁXIMO DO PENDRIVE
 function updateStorageMetrics() {
     let totalUsedGB = userSelection.reduce((acc, game) => acc + game.sizeGB, 0);
     const max = currentUsb.maxCapacity;
@@ -257,14 +268,12 @@ function updateStorageMetrics() {
         btnGenerate.disabled = true;
     } else {
         bar.classList.remove('overlimit');
-        // Desativa se estiver vazio, ativa se houver jogos dentro do limite permitido
         btnGenerate.disabled = userSelection.length === 0;
     }
 }
 
-// FLUXO DE CONCLUSÃO DA LISTA (CRIAÇÃO DO BASE64 E ENVIO AO ADMIN)
+// GERAÇÃO DO DOCUMENTO EM BASE64 E SALVAMENTO DE ENCOMENDAS NO FIREBASE
 function finishAndSendList() {
-    // 1. Gera Conteúdo Estruturado da Tabela A4 para Renderização e posterior Base64
     const tableBody = document.getElementById('a4-table-body');
     tableBody.innerHTML = '';
     
@@ -272,7 +281,7 @@ function finishAndSendList() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td style="font-weight: bold;">${game.title}</td>
+            <td style="font-weight: bold; text-align: left;">${game.title}</td>
             <td>${formatGameSizeText(game)}</td>
         `;
         tableBody.appendChild(tr);
@@ -282,11 +291,10 @@ function finishAndSendList() {
     document.getElementById('a4-usb-size').innerText = `${currentUsb.size}GB (Capacidade real: ${currentUsb.maxCapacity}GB)`;
     document.getElementById('a4-total-used').innerText = `${totalUsedGB.toFixed(2)} GB`;
 
-    // 2. Transforma o HTML gerado da folha A4 em Base64 string pura
+    // Processa o encapsulamento HTML puro da folha gerada e converte em String Base64 limpa
     const htmlContent = document.getElementById('a4-container').innerHTML;
     const base64List = btoa(unescape(encodeURIComponent(htmlContent)));
 
-    // 3. Monta payload para persistência nas Encomendas do Admin via Firebase
     const orderPayload = {
         timestamp: firebase.database.ServerValue.TIMESTAMP,
         usbOriginalSize: `${currentUsb.size}GB`,
@@ -296,19 +304,21 @@ function finishAndSendList() {
 
     database.ref('orders').push(orderPayload)
         .then(() => {
-            // Configura botão do whatsapp dinamicamente
             setupWhatsappButton();
             switchSection('success');
         })
-        .catch(err => alert("Erro ao enviar pedido para o servidor: " + err.message));
+        .catch(err => {
+            alert("Erro ao enviar a lista gerada para o servidor: " + err.message);
+        });
 }
 
+// MONTAGEM DO LINK DIRETO COM TEXTO RESTRUTURADO PARA O WHATSAPP
 function setupWhatsappButton() {
     let msg = `*NOVA ENCOMENDA DE JOGOS - PS2*%0A`;
     msg += `---------------------------------%0A`;
-    msg += `*Pen Drive:* ${currentUsb.size}GB%0A`;
+    msg += `*Pen Drive Selecionado:* ${currentUsb.size}GB%0A`;
     msg += `*Quantidade de Jogos:* ${userSelection.length}%0A%0A`;
-    msg += `*LISTA DE JOGOS:*%0A`;
+    msg += `*LISTA DOS JOGOS SELECIONADOS:*%0A`;
     
     userSelection.forEach((game, i) => {
         msg += `${i+1}. ${game.title} (${formatGameSizeText(game)})%0A`;
@@ -320,16 +330,14 @@ function setupWhatsappButton() {
     };
 }
 
-
-// GERENCIAMENTO DA ÁREA ADMINISTRATIVA
+// PROCESSAMENTO DE ENCOMENDAS RECEBIDAS DO BANCO NA ÁREA DO ADMINISTRADOR
 function loadAdminData() {
-    // Processamento de Pedidos do Usuário recebidos
     database.ref('orders').on('value', snapshot => {
         const tableBody = document.getElementById('admin-orders-table');
         tableBody.innerHTML = '';
         
         if(!snapshot.exists()) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhuma encomenda recebida ainda.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhuma lista encomendada localizada no momento.</td></tr>';
             return;
         }
 
@@ -348,7 +356,7 @@ function loadAdminData() {
                     </button>
                 </td>
             `;
-            tableBody.prepend(tr); // Mais recentes primeiro
+            tableBody.prepend(tr); 
         });
     });
 }
@@ -358,7 +366,7 @@ function renderAdminGamesTable() {
     tableBody.innerHTML = '';
 
     if(catalogGames.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum jogo no banco de dados.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum jogo localizado no catálogo base.</td></tr>';
         return;
     }
 
@@ -368,8 +376,8 @@ function renderAdminGamesTable() {
             <td>${game.title}</td>
             <td>${formatGameSizeText(game)}</td>
             <td>
-                <button class="btn-secondary" style="padding: 5px 10px;" onclick="startEditGame('${game.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button class="btn-danger" style="padding: 5px 10px;" onclick="deleteGame('${game.id}')"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-secondary" style="padding: 6px 12px;" onclick="startEditGame('${game.id}')"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button class="btn-danger" style="padding: 6px 12px;" onclick="deleteGame('${game.id}')"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
         tableBody.appendChild(tr);
@@ -390,7 +398,7 @@ function startEditGame(id) {
 }
 
 function deleteGame(id) {
-    if(confirm("Deseja realmente excluir este jogo do catálogo?")) {
+    if(confirm("Deseja realmente remover este jogo da base de dados?")) {
         database.ref('games/' + id).remove();
     }
 }
@@ -403,17 +411,15 @@ function resetGameForm() {
     document.getElementById('btn-cancel-edit').style.display = 'none';
 }
 
-// FUNÇÃO DO ADMIN PARA FAZER DOWNLOAD DA ENCOMENDA EM BASE64
+// FUNÇÃO PARA DOWNLOAD DA STRING BASE64 PURA EM ARQUIVO .TXT
 window.downloadBase64Order = function(orderId) {
     database.ref('orders/' + orderId).once('value').then(snapshot => {
         if(snapshot.exists()) {
             const order = snapshot.val();
-            
-            // Cria elemento virtual para download do txt contendo a string base64 pura
             const element = document.createElement('a');
             const file = new Blob([order.base64File], {type: 'text/plain'});
             element.href = URL.createObjectURL(file);
-            element.download = `Lista_PS2_${order.usbOriginalSize}_${orderId}.txt`;
+            element.download = `Lista_Base64_PS2_${orderId}.txt`;
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);
@@ -421,9 +427,9 @@ window.downloadBase64Order = function(orderId) {
     });
 };
 
-// EXPORTAR BANCO DE DADOS (JSON BACKUP)
+// EXPORTAR BACKUP COMPLETO DO BANCO EM JSON
 function exportDatabaseToJSON() {
-    if (catalogGames.length === 0) return alert("Não há dados para exportar.");
+    if (catalogGames.length === 0) return alert("Não existem dados disponíveis para exportação.");
     
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(catalogGames, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -434,7 +440,7 @@ function exportDatabaseToJSON() {
     downloadAnchor.removeChild(downloadAnchor);
 }
 
-// IMPORTAR BANCO DE DADOS (JSON BACKUP)
+// IMPORTAR DADOS EXTERNOS VIA ARQUIVO JSON
 function importDatabaseFromJSON(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -444,9 +450,8 @@ function importDatabaseFromJSON(event) {
         try {
             const importedData = JSON.parse(e.target.result);
             if (Array.isArray(importedData)) {
-                if (confirm(`Atenção: Isso adicionará ${importedData.length} jogos ao seu catálogo atual. Deseja continuar?`)) {
+                if (confirm(`Confirmar inclusão de ${importedData.length} novos jogos no catálogo em lote?`)) {
                     importedData.forEach(game => {
-                        // Limpa a chave ID anterior se houver para não conflitar no push
                         const newGame = {
                             title: game.title,
                             displaySize: game.displaySize,
@@ -455,13 +460,13 @@ function importDatabaseFromJSON(event) {
                         };
                         database.ref('games').push(newGame);
                     });
-                    alert("Jogos importados com sucesso!");
+                    alert("Catálogo atualizado com sucesso!");
                 }
             } else {
-                alert("Formato de arquivo JSON inválido. Deve ser uma lista de jogos.");
+                alert("Formato incompatível detectado no JSON.");
             }
         } catch (err) {
-            alert("Erro ao ler o arquivo JSON: " + err.message);
+            alert("Erro durante o processamento do arquivo JSON: " + err.message);
         }
     };
     reader.readAsText(file);
