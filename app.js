@@ -209,7 +209,7 @@ function setupEventListeners() {
                 usb64: real64,
                 usb128: real128
             }).then(() => {
-                alert("Configurações de armazenamento atualizadas globalmente com sucesso!");
+                alert("Configurações de armazenamento updated globalmente com sucesso!");
             }).catch(err => {
                 alert("Erro ao gravar tamanhos: " + err.message);
             });
@@ -272,7 +272,7 @@ function renderUsbCards() {
             <span>Capacidade Real: ${currentUsbLimits.usb32} GB</span>
         </div>
 
-        <div class="usb-card" data-size="64" data-max="${currentUsbLimits.usb32}">
+        <div class="usb-card" data-size="64" data-max="${currentUsbLimits.usb64}">
             <div class="usb-vector">
                 <div class="usb-cap"></div>
                 <div class="usb-connector"><div class="usb-inside-lines"></div></div>
@@ -357,18 +357,26 @@ function formatGameSizeText(game) {
     return `${game.displaySize} ${game.unit}`;
 }
 
+// CORREÇÃO E FILTRAGEM: RENDERIZA APENAS OS JOGOS QUE NÃO FORAM SELECIONADOS AINDA
 function renderCatalog() {
     const listContainer = document.getElementById('catalog-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
+    
     catalogGames.forEach(game => {
-        const item = document.createElement('div');
-        item.className = 'game-item';
-        item.innerHTML = `
-            <div class="game-item-info"><span class="title">${game.title}</span><span class="size">${formatGameSizeText(game)}</span></div>
-            <button class="btn-primary" onclick="addGameToSelection('${game.id}')"><i class="fa-solid fa-plus"></i></button>
-        `;
-        listContainer.appendChild(item);
+        // Verifica se o ID do jogo já existe dentro da lista que o cliente escolheu
+        const alreadySelected = userSelection.some(selected => selected.id === game.id);
+        
+        // Se o jogo NÃO estiver selecionado, ele aparece no catálogo
+        if (!alreadySelected) {
+            const item = document.createElement('div');
+            item.className = 'game-item';
+            item.innerHTML = `
+                <div class="game-item-info"><span class="title">${game.title}</span><span class="size">${formatGameSizeText(game)}</span></div>
+                <button class="btn-primary" onclick="addGameToSelection('${game.id}')"><i class="fa-solid fa-plus"></i></button>
+            `;
+            listContainer.appendChild(item);
+        }
     });
 }
 
@@ -392,6 +400,7 @@ window.addGameToSelection = function(id) {
     if(game) {
         userSelection.push(game);
         renderUserSelection();
+        renderCatalog(); // Atualiza o catálogo para sumir com o jogo que acabou de entrar
         updateStorageMetrics();
     }
 };
@@ -399,6 +408,7 @@ window.addGameToSelection = function(id) {
 window.removeGameFromSelection = function(index) {
     userSelection.splice(index, 1);
     renderUserSelection();
+    renderCatalog(); // Atualiza o catálogo para que o jogo removido reapareça imediatamente
     updateStorageMetrics();
 };
 
