@@ -24,7 +24,7 @@ import {
     onValue 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// SEGURANÇA 2026: Credenciais injetadas dinamicamente via escopo seguro/env para evitar hardcoding exposto
+// SEGURANÇA: Credenciais injetadas dinamicamente via escopo seguro/env para evitar hardcoding exposto
 const firebaseConfig = {
     apiKey: window._env_?.FIREBASE_API_KEY || "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
     authDomain: window._env_?.FIREBASE_AUTH_DOMAIN || "sua-lista-e6ef3.firebaseapp.com",
@@ -47,12 +47,16 @@ let selectedPendriveSize = 0;
 let maxRealCapacityGB = 0;
 let currentListGames = []; 
 let globalCatalog = []; 
+let editandoJogoId = null; // Armazena o ID do jogo em edição no painel Admin
 
 let pendriveConfig = {
     size32: 29.2,
     size64: 58.4,
     size128: 116.8
 };
+
+// Whitelist de provedores de e-mail permitidos
+const provedoresPermitidos = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'yahoo.com.br'];
 
 /**
  * ==========================================================================
@@ -219,11 +223,41 @@ function traduzirErroFirebase(code) {
 function ativarModalConfirmacaoComWhats(pacote) {
     if(elements.confirmationModal) {
         elements.confirmationModal.classList.remove('hidden');
-        const numWhats = "5588999999999"; // Substitua pelo número real da loja
+        const numWhats = "5588999999999"; // Ajuste para o número da sua loja
         const msg = encodeURIComponent(`Olá! Acabei de enviar minha lista de jogos no Pendrive de ${pacote.pendriveNominal}GB (${pacote.espacoOcupadoGB.toFixed(2)} GB Usados). Nome: ${pacote.cliente.nome}. Aguardo confirmação!`);
         const btnWhats = document.getElementById('btnConfirmacaoWhatsapp');
         if(btnWhats) btnWhats.href = `https://wa.me/${numWhats}?text=${msg}`;
     }
+}
+
+/**
+ * MÁSCARA MATEMÁTICA PARA FILTRAGEM E AJUSTE DE WHATSAPP (XX) XXXXX-XXXX
+ */
+function aplicarMascaraWhatsapp(input) {
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, "");
+        if (value.length > 11) value = value.slice(0, 11);
+        
+        if (value.length > 6) {
+            value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7)}`;
+        } else if (value.length > 2) {
+            value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+        } else if (value.length > 0) {
+            value = `(${value}`;
+        }
+        e.target.value = value;
+    });
+}
+
+/**
+ * VALIDADOR DE DOMÍNIO DE E-MAIL (WHITELIST)
+ */
+function validarEmailWhitelist(email) {
+    const partes = email.split('@');
+    if (partes.length !== 2) return false;
+    const dominio = partes[1].toLowerCase().trim();
+    return provedoresPermitidos.includes(dominio);
 }
 
 /**
@@ -234,6 +268,12 @@ function ativarModalConfirmacaoComWhats(pacote) {
 document.addEventListener('DOMContentLoaded', () => {
     escutarConfiguracoesPendrive();
     escutarCatalogoJogos();
+
+    // Ativando máscaras nos inputs de WhatsApp encontrados no DOM
+    const cadWhatsInput = document.getElementById('cadWhatsapp');
+    const envioWhatsInput = document.getElementById('envioWhatsapp');
+    if (cadWhatsInput) aplicarMascaraWhatsapp(cadWhatsInput);
+    if (envioWhatsInput) aplicarMascaraWhatsapp(envioWhatsInput);
 
     // Cliques Iniciais
     document.getElementById('btnOpcaoLogin')?.addEventListener('click', () => showScreen(elements.loginModal));
@@ -321,12 +361,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 2. REGISTRO DE NOVA CONTA CLIENTE
+    // 2. REGISTRO DE NOVA CONTA CLIENTE (COM VERIFICAÇÃO DE WHITELIST DE PROVEDORES)
     elements.formCadastro?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('cadEmail').value.trim();
         const senha = document.getElementById('cadSenha').value;
         const selectUF = document.getElementById('cadUF');
+
+        // Reforço da regra de negócio de Provedores Famosos
+        if (!validarEmailWhitelist(email)) {
+            alert(`E-mail inválido! Para garantir a entrega das notificações, use uma conta dos seguintes provedores: ${provedoresPermitidos.join(', ')}.`);
+            return;
+        }
 
         const dadosPerfil = {
             nome: document.getElementById('cadNome').value.trim(),
@@ -397,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 5. CRIAÇÃO DE NOVOS JOGOS NO BANCO GERAL (ADMIN)
+    // 5. INSERÇÃO OU EDIÇÃO ATUALIZADA DE JOGOS NO BANCO GERAL (ADMIN)
     elements.formAdminAddJogo?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const nome = document.getElementById('addJogoNome').value.trim();
@@ -406,13 +452,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(unidade === "MB") tamanho = tamanho / 1024;
 
-        setButtonLoading(elements.btnAddJogoSubmit, true, "Adicionando...");
+        setButtonLoading(elements.btnAddJogoSubmit, true, editandoJogoId ? "Atualizando..." : "Adicionando...");
         try {
-            const novoJogoRef = push(ref(database, 'catalogo'));
-            await set(novoJogoRef, { nome: nome, tamanhoGB: tamanho });
+            if (editandoJogoId) {
+                // Modo Edição Operacional ativa
+                await update(ref(database, `catalogo/${editandoJogoId}`), { nome: nome, tamanhoGB: tamanho });
+                alert("Título atualizado com sucesso!");
+                editandoJogoId = null;
+                const txtBtn = elements.btnAddJogoSubmit.querySelector('.btn-text') || elements.btnAddJogoSubmit;
+                txtBtn.innerHTML = `<i class="fa-solid fa-plus"></i> Adicionar Jogo`;
+            } else {
+                // Modo Novo Cadastro
+                const novoJogoRef = push(ref(database, 'catalogo'));
+                await set(novoJogoRef, { nome: nome, tamanhoGB: tamanho });
+            }
             elements.formAdminAddJogo.reset();
         } catch (error) {
-            alert("Erro ao inserir: " + error.message);
+            alert("Erro ao salvar dados do título: " + error.message);
         } finally {
             setButtonLoading(elements.btnAddJogoSubmit, false);
         }
@@ -648,7 +704,6 @@ function renderizarCatalogoSelecao() {
     }
 
     jogosFiltrados.forEach(jogo => {
-        // CORREÇÃO CRÍTICA: Corrigido o typo 'job.id' para 'jogo.id' garantindo a verificação de duplicidade
         const jaEscolhido = currentListGames.some(item => item.id === jogo.id || item.nome === jogo.nome);
         if(!jaEscolhido) {
             const card = document.createElement('div');
@@ -750,12 +805,15 @@ function renderizarCatalogoAdmin() {
                 <h5>${jogo.nome}</h5>
                 <p class="admin-item-sub">${jogo.tamanhoGB.toFixed(2)} GB</p>
             </div>
-            <button type="button" class="btn-gamer btn-small btn-danger btnDeletarJogo" data-id="${jogo.id}"><i class="fa-solid fa-trash-can"></i></button>
+            <div class="admin-actions-cell" style="display:table-cell; vertical-align:middle; text-align:right;">
+                <button type="button" class="btn-gamer btn-small btn-edit-jogo" data-id="${jogo.id}" style="margin-right: 5px; background: #f39c12; color: #fff;"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" class="btn-gamer btn-small btn-danger btnDeletarJogo" data-id="${jogo.id}"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
         `;
         elements.adminCatalogContainer.appendChild(row);
     });
 
-    // CORREÇÃO CRÍTICA: Fechamento e amarração lógica da remoção de jogos do catálogo via Admin
+    // Evento de Deleção de Jogos
     elements.adminCatalogContainer.querySelectorAll('.btnDeletarJogo').forEach(btn => {
         btn.addEventListener('click', async () => {
             if(confirm("Deseja banir este título permanentemente da plataforma?")) {
@@ -765,6 +823,26 @@ function renderizarCatalogoAdmin() {
                 } catch(error) {
                     alert("Erro ao remover jogo: " + error.message);
                 }
+            }
+        });
+    });
+
+    // Captura e Manipulação Operacional para o Botão de Edição
+    elements.adminCatalogContainer.querySelectorAll('.btn-edit-jogo').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const jogo = globalCatalog.find(j => j.id === id);
+            if (jogo) {
+                editandoJogoId = id;
+                document.getElementById('addJogoNome').value = jogo.nome;
+                document.getElementById('addJogoTamanho').value = jogo.tamanhoGB;
+                document.getElementById('addJogoUnidade').value = "GB";
+                
+                const txtBtn = elements.btnAddJogoSubmit.querySelector('.btn-text') || elements.btnAddJogoSubmit;
+                txtBtn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Atualizar Jogo`;
+                
+                // Rola suavemente a tela até o formulário de edição para feedback visual claro do Admin
+                elements.formAdminAddJogo?.scrollIntoView({ behavior: 'smooth' });
             }
         });
     });
