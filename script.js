@@ -69,7 +69,7 @@ if (canvas && ctx) {
             this.x = x; this.y = y;
             this.size = Math.random() * 3 + 1;
             this.speedX = Math.random() * 2 - 1; this.speedY = Math.random() * 2 - 1;
-            this.color = document.body.classList.contains('theme-light') ? 'rgba(0, 102, 204, 0.5)' : 'rgba(0, 242, 254, 0.6)';
+            this.color = document.documentElement.getAttribute('data-theme') === 'light' ? 'rgba(155, 81, 224, 0.5)' : 'rgba(0, 242, 254, 0.6)';
         }
         update() {
             this.x += this.speedX; this.y += this.speedY;
@@ -212,7 +212,6 @@ function validarEmailWhitelist(email) {
  */
 function gerarDocumentoA4Base64(pacote) {
     const canvasA4 = document.createElement('canvas');
-    // Proporções exatas de uma folha A4 em 72 DPI (escala estendida para nitidez)
     canvasA4.width = 842;
     canvasA4.height = 1191;
     const ctxA4 = canvasA4.getContext('2d');
@@ -268,11 +267,10 @@ function gerarDocumentoA4Base64(pacote) {
     ctxA4.font = '14px sans-serif';
 
     pacote.jogos.forEach((jogo, index) => {
-        if(yPosition > canvasA4.height - 120) return; // Limite de página simples
+        if(yPosition > canvasA4.height - 120) return; 
         ctxA4.fillStyle = '#000000';
         ctxA4.fillText(String(index + 1).padStart(2, '0'), 60, yPosition);
         
-        // Cortar texto se o nome do jogo for excessivamente grande
         let nomeCortado = jogo.nome;
         if(nomeCortado.length > 65) nomeCortado = nomeCortado.substring(0, 62) + '...';
         ctxA4.fillText(nomeCortado, 100, yPosition);
@@ -339,7 +337,7 @@ function configurarModalSucessoBotoes(pacote) {
     // 3. Ação Chamar no WhatsApp Comercial
     const btnWhats = document.getElementById('btnConfirmacaoWhatsapp');
     if(btnWhats) {
-        const numWhats = "5588999999999"; // Ajuste seu número comercial aqui
+        const numWhats = "5588999999999"; 
         const msg = encodeURIComponent(`Olá! Acabei de registrar minha lista de jogos no Gamer Space.\nMídia: Pendrive ${pacote.pendriveNominal}GB (${pacote.espacoOcupadoGB.toFixed(2)} GB Usados).\nCliente: ${pacote.cliente.nome}. Aguardo confirmação operacional!`);
         btnWhats.href = `https://wa.me/${numWhats}?text=${msg}`;
     }
@@ -395,10 +393,19 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.navRestrito?.addEventListener('click', (e) => { e.preventDefault(); showScreen(elements.adminLoginModal); });
     elements.navSair?.addEventListener('click', (e) => { e.preventDefault(); signOut(auth); });
 
+    // --- CORREÇÃO INTEGRADA DO BOTÃO DE ALTERNÂNCIA DE TEMA CLARO / GAMER ---
     elements.btnToggleTheme?.addEventListener('click', () => {
-        document.body.classList.toggle('theme-light');
+        if (document.documentElement.getAttribute('data-theme') === 'light') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+        
         const icon = elements.btnToggleTheme.querySelector('i');
-        if(icon) icon.className = document.body.classList.contains('theme-light') ? "fa-solid fa-moon" : "fa-solid fa-sun";
+        if (icon) {
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+            icon.className = isLight ? "fa-solid fa-moon" : "fa-solid fa-sun";
+        }
     });
 
     document.querySelectorAll('.pendrive-card').forEach(card => {
