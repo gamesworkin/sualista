@@ -6,7 +6,7 @@
     <title>Gamer Space - Montar Catálogo de Jogos</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght=700;900&family=Rajdhani:wght=500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -83,7 +83,7 @@
 
         <section id="cadastroModal" class="central-modal hidden">
             <h2><i class="fa-solid fa-id-card"></i> Registro Gamer</h2>
-            <p>Preencha os dados operacionais. Use provedores confiáveis (Gmail, Outlook, Hotmail, Yahoo).</p>
+            <p>Preencha os dados operacionais para criar sua conta na plataforma.</p>
             <form id="formCadastro">
                 <div class="form-row">
                     <div class="form-group">
@@ -97,15 +97,15 @@
                 </div>
                 <div class="form-group">
                     <label for="cadEmail">E-mail Principal</label>
-                    <input type="email" id="cadEmail" required placeholder="seuemail@gmail.com">
+                    <input type="email" id="cadEmail" required placeholder="seuemail@provedor.com">
                 </div>
                 <div class="form-group">
                     <label for="cadSenha">Senha (mínimo 6 dígitos)</label>
                     <input type="password" id="cadSenha" required minlength="6" placeholder="******">
                 </div>
                 <div class="form-group">
-                    <label for="cad減hatsapp">WhatsApp</label>
-                    <input type="tel" id="cadWhatsapp" required maxlength="15" placeholder="(88) 99999-9999">
+                    <label for="cadWhatsapp">WhatsApp (com DDD)</label>
+                    <input type="tel" id="cadWhatsapp" required placeholder="88999999999">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -116,15 +116,10 @@
                         <label for="cadUF">UF</label>
                         <select id="cadUF" required>
                             <option value="" disabled selected>Selecione</option>
-                            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
-                            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
-                            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
-                            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
-                            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
-                            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
-                            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                            <option value="CE">CE</option><option value="PE">PE</option>
+                            <option value="SP">SP</option><option value="RJ">RJ</option>
+                            <option value="MG">MG</option><option value="BA">BA</option>
+                            <option value="PR">PR</option><option value="RS">RS</option>
                         </select>
                     </div>
                 </div>
@@ -210,14 +205,12 @@
                     <div class="search-box">
                         <input type="text" id="searchGames" placeholder="🔍 Pesquisar jogo específico no catálogo...">
                     </div>
-                    <div id="availableGamesContainer" class="games-scroll-list invisible-scrollbar">
-                        </div>
+                    <div id="availableGamesContainer" class="games-scroll-list invisible-scrollbar"></div>
                 </div>
 
                 <div class="column-box">
                     <h3><i class="fa-solid fa-list-check"></i> Meus Jogos Escolhidos</h3>
-                    <div id="myGamesContainer" class="games-scroll-list invisible-scrollbar">
-                        </div>
+                    <div id="myGamesContainer" class="games-scroll-list invisible-scrollbar"></div>
                 </div>
             </div>
 
@@ -236,7 +229,7 @@
                     </div>
                     <div class="form-group">
                         <label for="envioWhatsapp">WhatsApp para Alinhamento Operacional</label>
-                        <input type="tel" id="envioWhatsapp" required maxlength="15" placeholder="(88) 99999-9999">
+                        <input type="tel" id="envioWhatsapp" required placeholder="88999999999">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -247,15 +240,10 @@
                             <label for="envioUF">UF</label>
                             <select id="envioUF" required>
                                 <option value="" disabled selected>Selecione</option>
-                                <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
-                                <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
-                                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
-                                <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                                <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
-                                <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
-                                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
-                                <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                                <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                <option value="CE">CE</option><option value="PE">PE</option>
+                                <option value="SP">SP</option><option value="RJ">RJ</option>
+                                <option value="MG">MG</option><option value="BA">BA</option>
+                                <option value="PR">PR</option><option value="RS">RS</option>
                             </select>
                         </div>
                     </div>
@@ -276,8 +264,7 @@
             </div>
             <div class="column-box" style="margin-top: 25px;">
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Encomendas Registradas</h3>
-                <div id="userListsHistoryContainer" class="history-grid-container">
-                    </div>
+                <div id="userListsHistoryContainer" class="history-grid-container"></div>
             </div>
         </section>
 
@@ -316,8 +303,7 @@
                     </form>
 
                     <h3 style="margin-top: 30px;"><i class="fa-solid fa-list-ol"></i> Títulos Ativos no Sistema</h3>
-                    <div id="adminCatalogContainer" class="games-scroll-list invisible-scrollbar" style="height: 250px;">
-                        </div>
+                    <div id="adminCatalogContainer" class="games-scroll-list invisible-scrollbar" style="height: 250px;"></div>
                 </div>
 
                 <div class="column-box">
@@ -343,35 +329,12 @@
 
                 <div class="column-box full-width-box">
                     <h3><i class="fa-solid fa-headset"></i> Listas Recebidas (Fila de Trabalho)</h3>
-                    <div id="adminOrdersContainer">
-                        </div>
+                    <div id="adminOrdersContainer"></div>
                 </div>
             </div>
         </section>
 
     </main>
-
-    <div id="editJogoModal" class="central-modal hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 99999;">
-        <h2><i class="fa-solid fa-pen-to-square" style="color: var(--border-neon);"></i> Editar Cadastro do Jogo</h2>
-        <p>Altere as informações estruturais do título no catálogo do sistema.</p>
-        <form id="formAdminEditJogo">
-            <input type="hidden" id="editJogoId">
-            <div class="form-group">
-                <label for="editJogoNome">Nome Comercial do Título</label>
-                <input type="text" id="editJogoNome" required>
-            </div>
-            <div class="form-group">
-                <label for="editJogoTamanho">Peso do Arquivo (em GB)</label>
-                <input type="number" step="0.01" id="editJogoTamanho" required>
-            </div>
-            <div class="modal-buttons-grid">
-                <button type="submit" class="btn-gamer btn-accent btn-block" id="btnEditJogoSubmit">
-                    <span class="btn-text">Salvar Alterações</span>
-                </button>
-                <button type="button" class="btn-gamer btn-cancel btn-block" id="btnFecharEditJogo">Cancelar</button>
-            </div>
-        </form>
-    </div>
 
     <div id="confirmationModal" class="central-modal hidden" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999;">
         <h2><i class="fa-solid fa-circle-check" style="color: var(--accent);"></i> Lista Transmitida!</h2>
