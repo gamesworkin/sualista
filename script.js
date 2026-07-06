@@ -232,7 +232,7 @@ function gerarDocumentoA4Base64(pacote) {
     // Título Principal do Estabelecimento
     ctxA4.fillStyle = '#000000';
     ctxA4.font = 'bold 28px sans-serif';
-    ctxA4.fillText('GAMER SPACE - ORDEM DE GRAVAÇÃO DIGITAL', 60, 85);
+    ctxA4.fillText('Workin Store - Gravação', 60, 85);
 
     ctxA4.font = '14px sans-serif';
     ctxA4.fillStyle = '#555555';
@@ -255,7 +255,7 @@ function gerarDocumentoA4Base64(pacote) {
     ctxA4.fillStyle = '#000000';
     ctxA4.fillText('Nº', 60, yPosition);
     ctxA4.fillText('TÍTULO DO JOGO SELECIONADO', 100, yPosition);
-    ctxA4.fillText('VOLUME (GB)', 700, yPosition);
+    ctxA4.fillText('(GB)', 700, yPosition);
 
     ctxA4.lineWidth = 1;
     ctxA4.beginPath();
