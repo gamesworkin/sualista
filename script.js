@@ -1,6 +1,6 @@
 /**
  * ========================================================================== 
- * MOTOR DE NEGÓCIOS - GAMER SPACE (COMPLETO, INTEGRAL E ATUALIZADO 2026)
+ * MOTOR DE NEGÓCIOS - WORKIN STORE (COMPLETO, INTEGRAL E ATUALIZADO 2026)
  * ==========================================================================
  */
 
