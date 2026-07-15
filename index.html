@@ -3,256 +3,287 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Catálogo Retro - Descubra, filtre e explore uma coleção completa de jogos clássicos e modernos." />
-  <meta name="author" content="Catálogo Retro" />
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Catálogo Retro - Jogos" />
-  <meta property="og:description" content="Descubra, filtre e explore uma coleção completa de jogos." />
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Catálogo Retro - Jogos" />
-  <meta name="twitter:description" content="Descubra, filtre e explore uma coleção completa de jogos." />
-  <title>Catálogo Retro - Jogos</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <title>PS2 Catálogo Retrô — Monte sua lista</title>
+  <meta name="description" content="Monte sua lista de jogos de Playstation 2 e receba direto no WhatsApp." />
+  <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E🎮%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- ============ LOADING OVERLAY ============ -->
-  <div id="loading" class="loading-overlay" aria-hidden="true">
-    <div class="spinner" role="status" aria-label="Carregando"></div>
+  <!-- ========== LOADER GLOBAL ========== -->
+  <div id="global-loader" class="loader-overlay">
+    <div class="loader-ring"></div>
+    <p>Carregando catálogo...</p>
   </div>
-  <!-- ============ TOAST ============ -->
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <!-- ============ HEADER ============ -->
-  <header class="header" role="banner">
-    <div class="container header-inner">
-      <a href="#home" class="logo" aria-label="Ir para a página inicial">
-        <span class="logo-mark">◆</span>
-        <span class="logo-text" id="siteName">Catálogo Retro</span>
-      </a>
-      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
-      <nav class="nav" id="mainNav" role="navigation" aria-label="Menu principal">
-        <a href="#home" class="nav-link">Início</a>
-        <a href="#novidades" class="nav-link">Novidades</a>
-        <a href="#destaques" class="nav-link">Destaques</a>
-        <a href="#todos" class="nav-link">Todos</a>
-        <a href="#" class="nav-link" data-filter-nav="categorias">Categorias</a>
-        <a href="#" class="nav-link" data-filter-nav="plataformas">Plataformas</a>
-        <button class="btn btn-primary btn-sm" id="btnAdminOpen" type="button">Admin</button>
-      </nav>
-    </div>
-    <div class="container search-bar">
-      <input
-        type="search"
-        id="searchInput"
-        class="search-input"
-        placeholder="Pesquisar por nome, categoria, plataforma, ano ou gênero..."
-        aria-label="Pesquisar jogos"
-      />
-    </div>
-  </header>
-  <!-- ============ BANNER ============ -->
-  <section class="banner" id="banner" aria-label="Banners em destaque">
-    <div class="banner-track" id="bannerTrack"></div>
-    <div class="banner-dots" id="bannerDots" role="tablist"></div>
-  </section>
-  <!-- ============ FILTROS ============ -->
-  <section class="filters container" aria-label="Filtros">
-    <select id="filterCategory" aria-label="Filtrar por categoria"><option value="">Todas as categorias</option></select>
-    <select id="filterPlatform" aria-label="Filtrar por plataforma"><option value="">Todas as plataformas</option></select>
-    <select id="filterYear" aria-label="Filtrar por ano"><option value="">Todos os anos</option></select>
-    <select id="filterGenre" aria-label="Filtrar por gênero"><option value="">Todos os gêneros</option></select>
-    <select id="filterSort" aria-label="Ordenar">
-      <option value="recent">Mais recentes</option>
-      <option value="old">Mais antigos</option>
-      <option value="az">A - Z</option>
-      <option value="za">Z - A</option>
-    </select>
-    <button class="btn btn-ghost" id="btnClearFilters" type="button">Limpar</button>
-  </section>
-  <!-- ============ MAIN ============ -->
-  <main class="container" role="main">
-    <section id="novidades" class="section">
-      <h2 class="section-title">Últimos adicionados</h2>
-      <div class="grid" id="gridRecent"></div>
-    </section>
-    <section id="destaques" class="section">
-      <h2 class="section-title">Em destaque</h2>
-      <div class="grid" id="gridFeatured"></div>
-    </section>
-    <section id="populares" class="section">
-      <h2 class="section-title">Mais populares</h2>
-      <div class="grid" id="gridPopular"></div>
-    </section>
-    <section id="todos" class="section">
-      <h2 class="section-title">Todos os jogos</h2>
-      <div class="grid" id="gridAll"></div>
-      <p id="emptyState" class="empty-state" hidden>Nenhum jogo encontrado.</p>
-    </section>
-  </main>
-  <!-- ============ FOOTER ============ -->
-  <footer class="footer" role="contentinfo">
-    <div class="container footer-inner">
-      <p id="footerText">© Catálogo Retro - Todos os direitos reservados.</p>
-      <div class="socials" id="socials"></div>
-    </div>
-  </footer>
-  <!-- ============ BOTÃO TOPO ============ -->
-  <button id="btnTop" class="btn-top" aria-label="Voltar ao topo" hidden>↑</button>
-  <!-- ============ MODAL DETALHES ============ -->
-  <div id="gameModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modalTitle">
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-content">
-      <button class="modal-close" data-close aria-label="Fechar">×</button>
-      <div class="modal-body" id="modalBody"></div>
-    </div>
-  </div>
-  <!-- ============ MODAL LOGIN ADMIN ============ -->
-  <div id="loginModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-content small">
-      <button class="modal-close" data-close aria-label="Fechar">×</button>
-      <h2>Acesso administrativo</h2>
-      <form id="loginForm" class="form">
-        <label>E-mail<input type="email" id="loginEmail" required autocomplete="email" /></label>
-        <label>Senha<input type="password" id="loginPassword" required autocomplete="current-password" /></label>
-        <button type="submit" class="btn btn-primary">Entrar</button>
-      </form>
-    </div>
-  </div>
-  <!-- ============ PAINEL ADMIN ============ -->
-  <div id="adminPanel" class="admin-panel" hidden aria-hidden="true">
-    <header class="admin-header">
-      <h2>Painel Administrativo</h2>
-      <div class="admin-header-actions">
-        <button class="btn btn-ghost" id="btnAdminClose" type="button">Ver site</button>
-        <button class="btn btn-danger" id="btnLogout" type="button">Sair</button>
+  <!-- ========== TOAST CONTAINER ========== -->
+  <div id="toast-container" class="toast-container"></div>
+  <!-- ========================================================= -->
+  <!-- ===================== ÁREA PÚBLICA ====================== -->
+  <!-- ========================================================= -->
+  <main id="public-area" class="hidden">
+    <!-- Header -->
+    <header class="site-header glass">
+      <div class="container header-inner">
+        <div class="brand">
+          <img id="site-logo" src="" alt="Logo" class="brand-logo" />
+          <div>
+            <h1 id="site-title" class="brand-title">PS2 Retrô</h1>
+            <span class="brand-sub">Catálogo Gamer</span>
+          </div>
+        </div>
+        <nav class="header-actions">
+          <div class="pendrive-selector">
+            <label for="pendrive-select">Pendrive</label>
+            <select id="pendrive-select"></select>
+          </div>
+          <button id="btn-open-cart" class="btn btn-primary">
+            <span>🎮 Minha Lista</span>
+            <span id="cart-count" class="badge">0</span>
+          </button>
+          <button id="btn-admin-login" class="btn btn-ghost" title="Área do admin">🔒</button>
+        </nav>
       </div>
     </header>
-    <nav class="admin-tabs" role="tablist">
-      <button class="tab active" data-tab="dashboard">Dashboard</button>
-      <button class="tab" data-tab="games">Jogos</button>
-      <button class="tab" data-tab="categories">Categorias</button>
-      <button class="tab" data-tab="platforms">Plataformas</button>
-      <button class="tab" data-tab="banners">Banners</button>
-      <button class="tab" data-tab="settings">Configurações</button>
-    </nav>
-    <!-- Dashboard -->
-    <section class="tab-panel active" data-panel="dashboard">
-      <div class="stats" id="statsGrid"></div>
-      <h3>Últimos adicionados</h3>
-      <div class="grid grid-sm" id="dashLatest"></div>
-    </section>
-    <!-- Jogos -->
-    <section class="tab-panel" data-panel="games">
-      <div class="panel-head">
-        <h3>Jogos</h3>
-        <button class="btn btn-primary" id="btnNewGame">+ Novo jogo</button>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <h2 class="hero-title">Monte sua lista de <span class="grad">Playstation 2</span></h2>
+        <p class="hero-sub">Escolha seus jogos favoritos, escolha o pendrive e receba tudo direto no WhatsApp.</p>
       </div>
-      <div id="gameFormWrapper" hidden>
-        <form id="gameForm" class="form form-grid">
-          <input type="hidden" id="gameId" />
-          <label>Título<input required id="g_titulo" /></label>
-          <label>Categoria<input id="g_categoria" list="dl_categorias" /></label>
-          <label>Plataforma<input id="g_plataforma" list="dl_plataformas" /></label>
-          <label>Ano<input type="number" id="g_ano" min="1970" max="2099" /></label>
-          <label>Gênero<input id="g_genero" /></label>
-          <label>Empresa<input id="g_empresa" /></label>
-          <label>Desenvolvedora<input id="g_desenvolvedora" /></label>
-          <label>Publicadora<input id="g_publicadora" /></label>
-          <label>Idioma<input id="g_idioma" /></label>
-          <label>Jogadores<input id="g_jogadores" /></label>
-          <label>Formato<input id="g_formato" /></label>
-          <label>Tamanho<input id="g_tamanho" /></label>
-          <label>Nota (0-10)<input type="number" step="0.1" min="0" max="10" id="g_nota" /></label>
-          <label>Ordem<input type="number" id="g_ordem" /></label>
-          <label class="full">Imagem (URL)<input type="url" id="g_imagem" placeholder="https://..." /></label>
-          <label class="full">Galeria (URLs separadas por vírgula)<textarea id="g_galeria" rows="2"></textarea></label>
-          <label class="full">Vídeo YouTube (URL)<input type="url" id="g_video" /></label>
-          <label class="full">Descrição<textarea id="g_descricao" rows="4"></textarea></label>
-          <div class="checks full">
-            <label><input type="checkbox" id="g_destaque" /> Destaque</label>
-            <label><input type="checkbox" id="g_popular" /> Popular</label>
-            <label><input type="checkbox" id="g_novo" /> Novo</label>
-            <label><input type="checkbox" id="g_ativo" checked /> Ativo</label>
+    </section>
+    <!-- Filtros -->
+    <section class="container filters">
+      <input id="search-input" type="search" placeholder="🔍 Pesquisar jogo..." />
+      <select id="category-filter"><option value="">Todas categorias</option></select>
+      <select id="sort-select">
+        <option value="az">A → Z</option>
+        <option value="za">Z → A</option>
+        <option value="size-asc">Menor tamanho</option>
+        <option value="size-desc">Maior tamanho</option>
+      </select>
+    </section>
+    <!-- Grid de jogos -->
+    <section class="container">
+      <div id="games-grid" class="games-grid"></div>
+      <div id="games-empty" class="empty hidden">Nenhum jogo encontrado.</div>
+    </section>
+    <footer class="site-footer">
+      <div class="container">
+        <p id="footer-text">© PS2 Retrô — Todos os direitos reservados.</p>
+      </div>
+    </footer>
+  </main>
+  <!-- ========================================================= -->
+  <!-- ===================== MODAL CARRINHO ==================== -->
+  <!-- ========================================================= -->
+  <div id="modal-cart" class="modal hidden">
+    <div class="modal-backdrop" data-close="modal-cart"></div>
+    <div class="modal-panel large">
+      <div class="modal-head">
+        <h3>🎮 Minha Lista</h3>
+        <button class="btn-icon" data-close="modal-cart">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="cart-items" class="cart-items"></div>
+        <div id="cart-empty" class="empty">Sua lista está vazia. Adicione jogos!</div>
+        <div class="capacity-box glass">
+          <div class="capacity-info">
+            <span>Pendrive: <strong id="cap-pendrive">-</strong></span>
+            <span>Usado: <strong id="cap-used">0.00 GB</strong></span>
+            <span>Restante: <strong id="cap-free">0.00 GB</strong></span>
           </div>
-          <div class="form-actions full">
-            <button type="submit" class="btn btn-primary">Salvar</button>
-            <button type="button" class="btn btn-ghost" id="btnCancelGame">Cancelar</button>
+          <div class="progress"><div id="cap-bar" class="progress-bar"></div></div>
+          <p id="cap-msg" class="cap-msg"></p>
+        </div>
+        <form id="checkout-form" class="checkout-form">
+          <h4>Seus dados</h4>
+          <div class="grid-2">
+            <label>Nome *<input name="nome" required /></label>
+            <label>Sobrenome *<input name="sobrenome" required /></label>
+            <label>WhatsApp *<input name="whatsapp" required placeholder="(88) 99999-9999" /></label>
+            <label>Cidade *<input name="cidade" required /></label>
+            <label>UF *<input name="uf" required maxlength="2" style="text-transform:uppercase" /></label>
           </div>
+          <button id="btn-finalize" type="submit" class="btn btn-primary btn-block">
+            ✅ Finalizar e enviar no WhatsApp
+          </button>
         </form>
-        <datalist id="dl_categorias"></datalist>
-        <datalist id="dl_plataformas"></datalist>
       </div>
-      <table class="admin-table">
-        <thead><tr><th>Título</th><th>Categoria</th><th>Plataforma</th><th>Ano</th><th>Ativo</th><th>Ações</th></tr></thead>
-        <tbody id="adminGamesBody"></tbody>
-      </table>
-    </section>
-    <!-- Categorias -->
-    <section class="tab-panel" data-panel="categories">
-      <div class="panel-head"><h3>Categorias</h3></div>
-      <form id="categoryForm" class="form-inline">
-        <input type="hidden" id="catId" />
-        <input required id="catNome" placeholder="Nome da categoria" />
-        <button class="btn btn-primary" type="submit">Salvar</button>
-        <button class="btn btn-ghost" type="button" id="btnCancelCat" hidden>Cancelar</button>
-      </form>
-      <ul class="admin-list" id="adminCategoriesList"></ul>
-    </section>
-    <!-- Plataformas -->
-    <section class="tab-panel" data-panel="platforms">
-      <div class="panel-head"><h3>Plataformas</h3></div>
-      <form id="platformForm" class="form-inline">
-        <input type="hidden" id="platId" />
-        <input required id="platNome" placeholder="Nome da plataforma" />
-        <button class="btn btn-primary" type="submit">Salvar</button>
-        <button class="btn btn-ghost" type="button" id="btnCancelPlat" hidden>Cancelar</button>
-      </form>
-      <ul class="admin-list" id="adminPlatformsList"></ul>
-    </section>
-    <!-- Banners -->
-    <section class="tab-panel" data-panel="banners">
-      <div class="panel-head"><h3>Banners</h3></div>
-      <form id="bannerForm" class="form form-grid">
-        <input type="hidden" id="bId" />
-        <label class="full">Imagem URL<input type="url" required id="b_imagem" /></label>
-        <label>Título<input id="b_titulo" /></label>
-        <label>Botão (texto)<input id="b_botao" /></label>
-        <label class="full">Descrição<input id="b_descricao" /></label>
-        <label>Link<input id="b_link" /></label>
-        <label>Ordem<input type="number" id="b_ordem" /></label>
-        <label><input type="checkbox" id="b_ativo" checked /> Ativo</label>
-        <div class="form-actions full">
-          <button class="btn btn-primary" type="submit">Salvar</button>
-          <button class="btn btn-ghost" type="button" id="btnCancelBanner">Cancelar</button>
+    </div>
+  </div>
+  <!-- ========================================================= -->
+  <!-- ===================== MODAL DETALHES ==================== -->
+  <!-- ========================================================= -->
+  <div id="modal-game" class="modal hidden">
+    <div class="modal-backdrop" data-close="modal-game"></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h3 id="mg-title">Jogo</h3>
+        <button class="btn-icon" data-close="modal-game">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="mg-cover" class="mg-cover" src="" alt="" />
+        <p><strong>Categoria:</strong> <span id="mg-cat"></span></p>
+        <p><strong>Tamanho:</strong> <span id="mg-size"></span> GB</p>
+        <p><strong>Compatibilidade:</strong> <span id="mg-compat"></span></p>
+        <p id="mg-desc"></p>
+        <button id="mg-add" class="btn btn-primary btn-block">Adicionar à lista</button>
+      </div>
+    </div>
+  </div>
+  <!-- ========================================================= -->
+  <!-- ===================== MODAL LOGIN ADMIN ================= -->
+  <!-- ========================================================= -->
+  <div id="modal-login" class="modal hidden">
+    <div class="modal-backdrop" data-close="modal-login"></div>
+    <div class="modal-panel small">
+      <div class="modal-head">
+        <h3>🔒 Login Administrador</h3>
+        <button class="btn-icon" data-close="modal-login">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="login-form">
+          <label>E-mail<input name="email" type="email" required value="admin@admin.com" /></label>
+          <label>Senha<input name="password" type="password" required /></label>
+          <button class="btn btn-primary btn-block" type="submit">Entrar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- ========================================================= -->
+  <!-- ======================= ÁREA ADMIN ====================== -->
+  <!-- ========================================================= -->
+  <div id="admin-area" class="hidden admin-shell">
+    <aside class="admin-sidebar glass">
+      <div class="admin-brand">
+        <span class="logo-dot"></span>
+        <div>
+          <strong>Admin</strong>
+          <small>PS2 Retrô</small>
         </div>
-      </form>
-      <ul class="admin-list" id="adminBannersList"></ul>
-    </section>
-    <!-- Configurações -->
-    <section class="tab-panel" data-panel="settings">
-      <div class="panel-head"><h3>Configurações</h3></div>
-      <form id="settingsForm" class="form form-grid">
-        <label>Nome do site<input id="s_nome" /></label>
-        <label>Descrição<input id="s_descricao" /></label>
-        <label>Logo (URL)<input id="s_logo" /></label>
-        <label>Favicon (URL)<input id="s_favicon" /></label>
-        <label>Cor principal<input type="color" id="s_cor" /></label>
-        <label class="full">Rodapé<input id="s_rodape" /></label>
-        <label>Facebook<input id="s_facebook" /></label>
-        <label>Instagram<input id="s_instagram" /></label>
-        <label>YouTube<input id="s_youtube" /></label>
-        <label>Twitter/X<input id="s_twitter" /></label>
-        <div class="form-actions full">
-          <button class="btn btn-primary" type="submit">Salvar configurações</button>
+      </div>
+      <nav class="admin-nav">
+        <button class="admin-link active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="admin-link" data-tab="orders">📦 Pedidos</button>
+        <button class="admin-link" data-tab="games">🎮 Jogos</button>
+        <button class="admin-link" data-tab="categories">🗂️ Categorias</button>
+        <button class="admin-link" data-tab="pendrives">💾 Pendrives</button>
+        <button class="admin-link" data-tab="settings">⚙️ Configurações</button>
+        <button id="btn-logout" class="admin-link danger">🚪 Sair</button>
+      </nav>
+    </aside>
+    <section class="admin-main">
+      <!-- Dashboard -->
+      <div class="admin-tab active" data-tab="dashboard">
+        <h2>Dashboard</h2>
+        <div class="stats-grid">
+          <div class="stat glass"><span>📦 Pedidos</span><strong id="st-orders">0</strong></div>
+          <div class="stat glass"><span>🎮 Jogos</span><strong id="st-games">0</strong></div>
+          <div class="stat glass"><span>🗂️ Categorias</span><strong id="st-cats">0</strong></div>
+          <div class="stat glass"><span>⏳ Pendentes</span><strong id="st-pend">0</strong></div>
         </div>
-      </form>
+      </div>
+      <!-- Pedidos -->
+      <div class="admin-tab" data-tab="orders">
+        <h2>Pedidos</h2>
+        <div class="toolbar">
+          <input id="orders-search" placeholder="🔍 Pesquisar..." />
+          <select id="orders-sort">
+            <option value="recent">Mais recentes</option>
+            <option value="old">Mais antigos</option>
+            <option value="city">Cidade</option>
+            <option value="name">Nome</option>
+            <option value="status">Status</option>
+          </select>
+        </div>
+        <div id="orders-list" class="table-wrap"></div>
+      </div>
+      <!-- Jogos -->
+      <div class="admin-tab" data-tab="games">
+        <h2>Jogos</h2>
+        <button class="btn btn-primary" id="btn-new-game">+ Novo jogo</button>
+        <div id="admin-games-list" class="table-wrap"></div>
+      </div>
+      <!-- Categorias -->
+      <div class="admin-tab" data-tab="categories">
+        <h2>Categorias</h2>
+        <form id="form-cat" class="inline-form">
+          <input name="nome" placeholder="Nova categoria" required />
+          <button class="btn btn-primary">Adicionar</button>
+        </form>
+        <div id="admin-cats-list" class="table-wrap"></div>
+      </div>
+      <!-- Pendrives -->
+      <div class="admin-tab" data-tab="pendrives">
+        <h2>Pendrives</h2>
+        <p class="muted">Configure a capacidade REAL (em GB) de cada pendrive.</p>
+        <div id="admin-pen-list"></div>
+        <form id="form-pen" class="inline-form">
+          <input name="label" placeholder="Rótulo (ex: 256GB)" required />
+          <input name="real" type="number" step="0.01" placeholder="Capacidade real" required />
+          <button class="btn btn-primary">Adicionar</button>
+        </form>
+      </div>
+      <!-- Configurações -->
+      <div class="admin-tab" data-tab="settings">
+        <h2>Configurações do Site</h2>
+        <form id="form-settings" class="settings-form">
+          <label>Título do site<input name="title" /></label>
+          <label>Nome exibido<input name="displayName" /></label>
+          <label>Logo (URL)<input name="logo" /></label>
+          <label>Favicon (URL)<input name="favicon" /></label>
+          <label>Cor principal<input name="primary" type="color" /></label>
+          <label>Cor secundária<input name="secondary" type="color" /></label>
+          <label>Imagem de fundo (URL)<input name="bgImage" /></label>
+          <label>Texto do rodapé<input name="footer" /></label>
+          <label>WhatsApp<input name="whatsapp" placeholder="5588988470190" /></label>
+          <label>Tema
+            <select name="theme"><option value="dark">Escuro</option><option value="light">Claro</option></select>
+          </label>
+          <button class="btn btn-primary">Salvar</button>
+        </form>
+      </div>
     </section>
   </div>
-  <script type="module" src="script.js"></script>
+  <!-- Modal Game Form -->
+  <div id="modal-game-form" class="modal hidden">
+    <div class="modal-backdrop" data-close="modal-game-form"></div>
+    <div class="modal-panel">
+      <div class="modal-head"><h3 id="gf-title">Novo jogo</h3><button class="btn-icon" data-close="modal-game-form">✕</button></div>
+      <div class="modal-body">
+        <form id="form-game">
+          <input type="hidden" name="id" />
+          <label>Nome<input name="nome" required /></label>
+          <label>Categoria<select name="categoria" id="gf-cat" required></select></label>
+          <label>URL da capa<input name="capa" /></label>
+          <label>Tamanho (GB)<input name="tamanho" type="number" step="0.01" required /></label>
+          <label>Compatibilidade<input name="compatibilidade" placeholder="Ex: PS2 Slim, Fat" /></label>
+          <label>Descrição<textarea name="descricao" rows="3"></textarea></label>
+          <button class="btn btn-primary btn-block">Salvar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Confirmação -->
+  <div id="modal-confirm" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel small">
+      <div class="modal-head"><h3>Confirmar</h3></div>
+      <div class="modal-body">
+        <p id="confirm-msg">Tem certeza?</p>
+        <div class="modal-actions">
+          <button id="confirm-no" class="btn btn-ghost">Cancelar</button>
+          <button id="confirm-yes" class="btn btn-danger">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Firebase SDK (compat para simplicidade em CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
