@@ -1,417 +1,280 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workin'Store | Monte sua lista de Jogos</title>
-    <link rel="shortcut icon" href="fav.ico" type="image/x-icon">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monte seu Pendrive OPL - Workin'Store</title>
+<meta name="description" content="Monte o pendrive OPL do seu PlayStation 2 escolhendo seus jogos favoritos." />
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-    <canvas id="particleCanvas"></canvas>
+<!-- ============ HEADER ============ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">PS</div>
+      <div class="brand-text">
+        <h1><span class="neon">Monte</span> seu Pendrive OPL</h1>
+        <p>Selecione seus jogos favoritos e monte seu pendrive.</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="btn-admin-login" class="btn btn-ghost admin-only-hide">Admin</button>
+      <button id="btn-admin-panel" class="btn btn-ghost is-admin-only">Painel Admin</button>
+      <button id="btn-admin-logout" class="btn btn-ghost is-admin-only">Sair</button>
+      <div class="wa-stack">
+        <a id="btn-whatsapp" class="btn btn-success" href="https://wa.me/5588988470190" target="_blank" rel="noopener">WhatsApp</a>
+        <button id="btn-send-list" class="btn btn-primary">Envie sua lista</button>
+      </div>
+    </div>
+  </div>
+</header>
 
-    <header class="header-gamer">
-        <div class="header-container">
-            <div class="brand-logo" id="btnLogo">
-                <i class="fa-solid fa-gamepad"></i> Workin'<span>Store</span>
-            </div>
-            <nav class="nav-menu">
-                <a href="#" id="navHome"><i class="fa-solid fa-house"></i> Início</a>
-                <a href="#" id="navRestrito"><i class="fa-solid fa-lock"></i> Painel Admin</a>
-                <a href="#" id="navSair" class="hidden"><i class="fa-solid fa-right-from-bracket"></i> Sair</a>
-                <button id="btnToggleTheme" class="btn-theme-toggle" type="button">
-                    <i class="fa-solid fa-sun"></i>
-                </button>
-            </nav>
-        </div>
-    </header>
+<main class="container">
 
-    <main class="main-wrapper">
-
-        <section id="initialModal" class="glass-panel central-card">
-            <h2 class="title-cyber">Seja bem-vindo!</h2>
-            <p class="subtitle-cyber">Monte sua lista de jogos diretamente nos pen-drives.</p>
-            <div class="action-stack">
-                <button type="button" class="btn-gamer btn-primary" id="btnOpcaoLogin">
-                    <span class="btn-text"><i class="fa-solid fa-user-check"></i> Acessar Minha Conta</span>
-                </button>
-                <button type="button" class="btn-gamer btn-secondary" id="btnOpcaoCadastro">
-                    <span class="btn-text"><i class="fa-solid fa-user-plus"></i> Registrar Nova Conta</span>
-                </button>
-                <div class="divider-or"><span>OU</span></div>
-                <button type="button" class="btn-gamer btn-accent" id="btnOpcaoAnonimo">
-                    <span class="btn-text"><i class="fa-solid fa-bolt"></i> Continuar de Forma Anônima</span>
-                </button>
-            </div>
-        </section>
-
-        <section id="loginModal" class="glass-panel central-card hidden">
-            <h2 class="title-cyber">LOGIN DE CLIENTE</h2>
-            <form id="formLogin" class="form-cyber">
-                <div class="input-group">
-                    <label for="loginEmail">E-mail</label>
-                    <input type="email" id="loginEmail" required placeholder="Ex: jogador@gmail.com">
-                </div>
-                <div class="input-group">
-                    <label for="loginSenha">Senha</label>
-                    <input type="password" id="loginSenha" required placeholder="******">
-                </div>
-                <button type="submit" class="btn-gamer btn-primary" id="btnLoginSubmit">
-                    <span class="btn-text"><i class="fa-solid fa-right-to-bracket"></i> Autenticar</span>
-                </button>
-                <div class="form-links">
-                    <a href="#" id="btnIrRecuperar">Esqueceu a senha?</a>
-                    <button type="button" class="btn-gamer btn-secondary btn-small btnBackInitial">Voltar</button>
-                </div>
-            </form>
-        </section>
-
-        <section id="recoveryModal" class="glass-panel central-card hidden">
-            <h2 class="title-cyber">RECUPERAR CONTA</h2>
-            <p class="form-instruction">Forneça o seu e-mail cadastrado para enviarmos instruções de redefinição.</p>
-            <form id="formRecovery" class="form-cyber">
-                <div class="input-group">
-                    <label for="recoveryEmail">E-mail Cadastrado</label>
-                    <input type="email" id="recoveryEmail" required placeholder="Ex: jogador@gmail.com">
-                </div>
-                <button type="submit" class="btn-gamer btn-primary" id="btnRecoverySubmit">
-                    <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Enviar Link</span>
-                </button>
-                <button type="button" class="btn-gamer btn-secondary btn-small" id="btnBackLogin">Voltar para o Login</button>
-            </form>
-        </section>
-
-        <section id="cadastroModal" class="glass-panel central-card hidden">
-            <h2 class="title-cyber">NOVA CONTA</h2>
-            <form id="formCadastro" class="form-cyber grid-2">
-                <div class="input-group">
-                    <label for="cadNome">Nome</label>
-                    <input type="text" id="cadNome" required placeholder="Seu nome">
-                </div>
-                <div class="input-group">
-                    <label for="cadSobrenome">Sobrenome</label>
-                    <input type="text" id="cadSobrenome" required placeholder="Seu sobrenome">
-                </div>
-                <div class="input-group span-2">
-                    <label for="cadEmail">E-mail Comercial</label>
-                    <input type="email" id="cadEmail" required placeholder="Ex: jogador@gmail.com">
-                </div>
-                <div class="input-group">
-                    <label for="cadSenha">Senha de Acesso</label>
-                    <input type="password" id="cadSenha" required placeholder="Mínimo 6 dígitos">
-                </div>
-                <div class="input-group">
-                    <label for="cadWhatsapp">WhatsApp</label>
-                    <input type="text" id="cadWhatsapp" required placeholder="(88) 99999-9999">
-                </div>
-                <div class="input-group">
-                    <label for="cadCidade">Cidade</label>
-                    <input type="text" id="cadCidade" required placeholder="Sua cidade">
-                </div>
-                <div class="input-group">
-                    <label for="cadUF">Estado (UF)</label>
-                    <select id="cadUF" required>
-                        <option value="" disabled selected>Selecione</option>
-                        <option value="AC">AC - Acre</option>
-                        <option value="AL">AL - Alagoas</option>
-                        <option value="AP">AP - Amapá</option>
-                        <option value="AM">AM - Amazonas</option>
-                        <option value="BA">BA - Bahia</option>
-                        <option value="CE">CE - Ceará</option>
-                        <option value="DF">DF - Distrito Federal</option>
-                        <option value="ES">ES - Espírito Santo</option>
-                        <option value="GO">GO - Goiás</option>
-                        <option value="MA">MA - Maranhão</option>
-                        <option value="MT">MT - Mato Grosso</option>
-                        <option value="MS">MS - Mato Grosso do Sul</option>
-                        <option value="MG">MG - Minas Gerais</option>
-                        <option value="PA">PA - Pará</option>
-                        <option value="PB">PB - Paraíba</option>
-                        <option value="PR">PR - Paraná</option>
-                        <option value="PE">PE - Pernambuco</option>
-                        <option value="PI">PI - Piauí</option>
-                        <option value="RJ">RJ - Rio de Janeiro</option>
-                        <option value="RN">RN - Rio Grande do Norte</option>
-                        <option value="RS">RS - Rio Grande do Sul</option>
-                        <option value="RO">RO - Rondônia</option>
-                        <option value="RR">RR - Roraima</option>
-                        <option value="SC">SC - Santa Catarina</option>
-                        <option value="SP">SP - São Paulo</option>
-                        <option value="SE">SE - Sergipe</option>
-                        <option value="TO">TO - Tocantins</option>
-                    </select>
-                </div>
-                <div class="span-2 flex-center" style="margin-top: 10px;">
-                    <button type="submit" class="btn-gamer btn-primary" id="btnCadastroSubmit">
-                        <span class="btn-text"><i class="fa-solid fa-user-plus"></i> Concluir</span>
-                    </button>
-                    <button type="button" class="btn-gamer btn-secondary btnBackInitial">Cancelar</button>
-                </div>
-            </form>
-        </section>
-
-        <section id="adminLoginModal" class="glass-panel central-card hidden">
-            <h2 class="title-cyber"><i class="fa-solid fa-terminal"></i> TERMINAL RESTRITO</h2>
-            <form id="formAdminLogin" class="form-cyber">
-                <div class="input-group">
-                    <label for="adminEmail">Chave de Identificação</label>
-                    <input type="email" id="adminEmail" required placeholder="nome@email.com">
-                </div>
-                <div class="input-group">
-                    <label for="adminSenha">Senha de Autenticação</label>
-                    <input type="password" id="adminSenha" required placeholder="******">
-                </div>
-                <button type="submit" class="btn-gamer btn-accent" id="btnAdminLoginSubmit">
-                    <span class="btn-text"><i class="fa-solid fa-key"></i> Liberar Acesso</span>
-                </button>
-                <button type="button" class="btn-gamer btn-secondary btn-small btnBackInitial">Voltar</button>
-            </form>
-        </section>
-
-        <section id="pendriveSelectionScreen" class="glass-panel wide-card hidden">
-            <h2 class="title-cyber text-center">ESCOLHA A CAPACIDADE DO SEU PENDRIVE</h2>
-            <p class="subtitle-cyber text-center">Cada opção possui uma margem real ajustada pelo sistema.</p>
-            
-            <div class="pendrive-grid">
-                <div class="pendrive-card" data-size="32">
-                    <div class="usb-icon"><i class="fa-solid fa-hdd"></i></div>
-                    <h3>32 GB</h3>
-                    <p class="real-space">Espaço útil: <span class="lblRealSize32">Calculando...</span></p>
-                    <span class="badge-card">Básico</span>
-                </div>
-                <div class="pendrive-card" data-size="64">
-                    <div class="usb-icon"><i class="fa-solid fa-hdd"></i></div>
-                    <h3>64 GB</h3>
-                    <p class="real-space">Espaço útil: <span class="lblRealSize64">Calculando...</span></p>
-                    <span class="badge-card popular">Mais Vendido</span>
-                </div>
-                <div class="pendrive-card" data-size="128">
-                    <div class="usb-icon"><i class="fa-solid fa-hdd"></i></div>
-                    <h3>128 GB</h3>
-                    <p class="real-space">Espaço útil: <span class="lblRealSize128">Calculando...</span></p>
-                    <span class="badge-card">Premium</span>
-                </div>
-            </div>
-            
-            <div class="flex-center" style="margin-top:25px;">
-                <button type="button" class="btn-gamer btn-secondary btnBackInitial">Voltar ao Início</button>
-            </div>
-        </section>
-
-        <section id="listBuilderScreen" class="glass-panel workspace-card hidden">
-            <div class="workspace-header">
-                <div>
-                    <h2 class="title-cyber">MONTANDO ARMAZENAMENTO DIGITAL</h2>
-                    <p class="subtitle-cyber">Mídia: <span id="txtPendriveSelecionado">--</span> | Espaço Real Máximo: <span id="txtEspaçoRealMax">--</span></p>
-                </div>
-                <button type="button" class="btn-gamer btn-secondary btn-small" id="btnAlterarPendrive"><i class="fa-solid fa-rotate"></i> Mudar Mídia</button>
-            </div>
-
-            <div class="storage-dashboard-bar">
-                <div class="storage-meta-info">
-                    <span>Espaço Alocado: <strong id="txtEspacoUsado">0.00 GB</strong></span>
-                    <span>Espaço Livre: <strong id="txtEspacoLivre">0.00 GB</strong></span>
-                </div>
-                <div class="progress-container-cyber">
-                    <div id="storageProgressBar" class="progress-bar-fill"></div>
-                </div>
-            </div>
-
-            <div class="builder-split-grid">
-                <div class="panel-box">
-                    <h3><i class="fa-solid fa-magnifying-glass"></i> Títulos Disponíveis</h3>
-                    <input type="text" id="searchGames" class="input-cyber search-input" placeholder="Buscar jogos...">
-                    <div id="availableGamesContainer" class="scrollable-games-list"></div>
-                </div>
-
-                <div class="panel-box">
-                    <h3><i class="fa-solid fa-folder-open"></i> Conteúdo do seu Pendrive</h3>
-                    <div id="myGamesContainer" class="scrollable-games-list"></div>
-                </div>
-            </div>
-
-            <div class="checkout-footer-panel panel-box">
-                <h3><i class="fa-solid fa-truck-ramp-box"></i> Confirmar Informações de Envio</h3>
-                <form id="formEnvioLista" class="form-cyber grid-3">
-                    <div class="input-group">
-                        <label>Nome</label>
-                        <input type="text" id="envioNome" required placeholder="Nome">
-                    </div>
-                    <div class="input-group">
-                        <label>Sobrenome</label>
-                        <input type="text" id="envioSobrenome" required placeholder="Sobrenome">
-                    </div>
-                    <div class="input-group">
-                        <label>WhatsApp</label>
-                        <input type="text" id="envioWhatsapp" required placeholder="(88) 99999-9999">
-                    </div>
-                    <div class="input-group span-2">
-                        <label>Cidade de Entrega</label>
-                        <input type="text" id="envioCidade" required placeholder="Sua cidade">
-                    </div>
-                    <div class="input-group">
-                        <label>Estado (UF)</label>
-                        <select id="envioUF" required>
-                            <option value="" disabled selected>Selecione</option>
-                            <option value="AC">AC - Acre</option>
-                            <option value="AL">AL - Alagoas</option>
-                            <option value="AP">AP - Amapá</option>
-                            <option value="AM">AM - Amazonas</option>
-                            <option value="BA">BA - Bahia</option>
-                            <option value="CE">CE - Ceará</option>
-                            <option value="DF">DF - Distrito Federal</option>
-                            <option value="ES">ES - Espírito Santo</option>
-                            <option value="GO">GO - Goiás</option>
-                            <option value="MA">MA - Maranhão</option>
-                            <option value="MT">MT - Mato Grosso</option>
-                            <option value="MS">MS - Mato Grosso do Sul</option>
-                            <option value="MG">MG - Minas Gerais</option>
-                            <option value="PA">PA - Pará</option>
-                            <option value="PB">PB - Paraíba</option>
-                            <option value="PR">PR - Paraná</option>
-                            <option value="PE">PE - Pernambuco</option>
-                            <option value="PI">PI - Piauí</option>
-                            <option value="RJ">RJ - Rio de Janeiro</option>
-                            <option value="RN">RN - Rio Grande do Norte</option>
-                            <option value="RS">RS - Rio Grande do Sul</option>
-                            <option value="RO">RO - Rondônia</option>
-                            <option value="RR">RR - Roraima</option>
-                            <option value="SC">SC - Santa Catarina</option>
-                            <option value="SP">SP - São Paulo</option>
-                            <option value="SE">SE - Sergipe</option>
-                            <option value="TO">TO - Tocantins</option>
-                        </select>
-                    </div>
-                    <div class="span-3 flex-center" style="margin-top:10px;">
-                        <button type="submit" class="btn-gamer btn-accent" id="btnEnviarListaFinal">
-                            <span class="btn-text"><i class="fa-solid fa-cloud-arrow-up"></i> Solicitar Gravação</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </section>
-
-        <section id="userDashboardScreen" class="glass-panel workspace-card hidden">
-            <div class="workspace-header">
-                <div>
-                    <h2 class="title-cyber">PAINEL DO JOGADOR</h2>
-                    <p class="subtitle-cyber">Acompanhe seus pedidos em tempo real ou inicie novas compilações.</p>
-                </div>
-                <button type="button" class="btn-gamer btn-primary" id="btnIniciarNovaLista"><i class="fa-solid fa-plus"></i> Criar Nova Lista</button>
-            </div>
-            <div class="panel-box" style="margin-top:20px;">
-                <h3><i class="fa-solid fa-clock-rotate-left"></i> Histórico de Encomendas</h3>
-                <div id="userListsHistoryContainer" class="history-grid-layout"></div>
-            </div>
-        </section>
-
-        <section id="adminDashboardScreen" class="glass-panel workspace-card hidden">
-            <div class="workspace-header">
-                <div>
-                    <h2 class="title-cyber"><i class="fa-solid fa-gears"></i> SALA DE CONTROLE - ADMIN</h2>
-                    <p class="subtitle-cyber">Gerencie o acervo geral, backups e listas em fila.</p>
-                </div>
-                <div class="admin-backup-actions flex-center">
-                    <button type="button" class="btn-gamer btn-small" id="btnExportarCatalogo" style="background:#2980b9;"><i class="fa-solid fa-file-export"></i> Exportar JSON</button>
-                    <label class="btn-gamer btn-small" style="background:#27ae60; cursor:pointer; margin:0;">
-                        <i class="fa-solid fa-file-import"></i> Importar JSON
-                        <input type="file" id="btnImportarCatalogoFile" accept=".json" style="display:none;">
-                    </label>
-                </div>
-            </div>
-
-            <div class="admin-dashboard-grid">
-                <div class="panel-box">
-                    <h3><i class="fa-solid fa-square-plus"></i> Gerenciar Título</h3>
-                    <form id="formAdminAddJogo" class="form-cyber">
-                        <div class="input-group">
-                            <label>Nome do Jogo</label>
-                            <input type="text" id="addJogoNome" required placeholder="Ex: Grand Theft Auto V">
-                        </div>
-                        <div class="grid-2">
-                            <div class="input-group">
-                                <label>Tamanho</label>
-                                <input type="number" id="addJogoTamanho" step="0.01" required placeholder="Ex: 65.5">
-                            </div>
-                            <div class="input-group">
-                                <label>Unidade</label>
-                                <select id="addJogoUnidade">
-                                    <option value="GB">GB</option>
-                                    <option value="MB">MB</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn-gamer btn-primary" id="btnAddJogoSubmit">
-                            <span class="btn-text"><i class="fa-solid fa-plus"></i> Salvar Jogo</span>
-                        </button>
-                    </form>
-                </div>
-
-                <div class="panel-box">
-                    <h3><i class="fa-solid fa-sliders"></i> Ajuste de Mídias</h3>
-                    <form id="formAdminConfigPendrives" class="form-cyber">
-                        <div class="input-group">
-                            <label>Pendrive 32GB útil (GB)</label>
-                            <input type="number" id="cfgSize32" step="0.01" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Pendrive 64GB útil (GB)</label>
-                            <input type="number" id="cfgSize64" step="0.01" required>
-                        </div>
-                        <div class="input-group">
-                            <label>Pendrive 128GB útil (GB)</label>
-                            <input type="number" id="cfgSize128" step="0.01" required>
-                        </div>
-                        <button type="submit" class="btn-gamer btn-accent" id="btnConfigPendrivesSubmit">
-                            <span class="btn-text"><i class="fa-solid fa-floppy-disk"></i> Salvar</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="panel-box" style="margin-top:20px;">
-                <h3><i class="fa-solid fa-layer-group"></i> Fila de Produção (Listas Recebidas)</h3>
-                <div id="adminOrdersContainer" class="admin-list-rows"></div>
-            </div>
-
-            <div class="panel-box" style="margin-top:20px;">
-                <h3><i class="fa-solid fa-database"></i> Títulos Cadastrados</h3>
-                <div id="adminCatalogContainer" class="admin-list-rows"></div>
-            </div>
-        </section>
-
-    </main>
-
-    <div id="confirmationModal" class="fixed-modal-overlay hidden">
-        <div class="glass-panel confirmation-box text-center">
-            <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
-            <h2 class="title-cyber">TRANSMITIDO COM SUCESSO!</h2>
-            <p class="subtitle-cyber">Seu catálogo digital foi processado.</p>
-            
-            <p class="form-instruction" style="margin-bottom:15px; color:var(--text-muted);">Como deseja obter o espelho desta folha de gravação (A4)?</p>
-            
-            <div class="action-stack">
-                <button type="button" id="btnVisualizarListaBase64" class="btn-gamer" style="background:#3498db;">
-                    <i class="fa-solid fa-file-lines"></i> Visualizar Folha A4
-                </button>
-                <button type="button" id="btnBaixarListaJpeg" class="btn-gamer" style="background:#2ecc71;">
-                    <i class="fa-solid fa-file-image"></i> Baixar Imagem JPEG
-                </button>
-                <a href="#" id="btnConfirmacaoWhatsapp" target="_blank" class="btn-gamer" style="background:#25D366; text-decoration:none;">
-                    <i class="fa-brands fa-whatsapp"></i> Enviar pelo WhatsApp
-                </a>
-                <button type="button" class="btn-gamer btn-secondary" id="btnFecharConfirmacao" style="margin-top:10px;">
-                    Voltar ao Painel
-                </button>
-            </div>
-        </div>
+  <!-- ============ CAPACIDADE ============ -->
+  <section class="card">
+    <div class="cap-row">
+      <div>
+        <p class="label">Capacidade do pendrive</p>
+        <p class="muted" id="sel-count">0 jogos selecionados</p>
+      </div>
+      <div class="cap-buttons" id="cap-buttons">
+        <button data-cap="32" class="cap-btn active">32GB</button>
+        <button data-cap="64" class="cap-btn">64GB</button>
+        <button data-cap="128" class="cap-btn">128GB</button>
+      </div>
     </div>
 
-    <script type="module" src="script.js"></script>
+    <!-- Admin: capacidade real -->
+    <div class="is-admin-only cap-admin">
+      <p class="label small">Capacidade real (GB) — editável pelo admin</p>
+      <div class="cap-admin-grid">
+        <label>32GB real:
+          <input type="number" step="0.1" id="real-32" />
+        </label>
+        <label>64GB real:
+          <input type="number" step="0.1" id="real-64" />
+        </label>
+        <label>128GB real:
+          <input type="number" step="0.1" id="real-128" />
+        </label>
+        <button class="btn btn-primary" id="btn-save-caps">Salvar capacidades</button>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
+      <div class="progress-info">
+        <span>Usado: <b id="used-gb">0.00 GB</b></span>
+        <span>Restante: <b id="rem-gb">0.00 GB</b></span>
+        <span>Total: <b id="tot-gb">0.00 GB</b></span>
+      </div>
+      <p id="over-msg" class="over-msg hidden">Você ultrapassou a capacidade do pendrive.</p>
+    </div>
+
+    <div class="warning-box">
+      <p class="w-title">Aviso sobre jogos e patches (traduzidos/hacks)</p>
+      <p class="w-text">Jogos não-originais (traduções para PT-BR, patches ou versões alternativas) podem apresentar bugs, travamentos, tela preta ou problemas de compatibilidade. O funcionamento do jogo não é garantido e varia conforme o modelo e estado do seu PlayStation 2.</p>
+    </div>
+
+    <p class="catalog-count">Catálogo com <span id="game-total">0</span> jogos disponíveis</p>
+  </section>
+
+  <!-- ============ FILTROS ============ -->
+  <section class="card filters">
+    <input type="text" id="search" placeholder="Buscar por nome ou código (SLUS/SLES)..." />
+    <select id="filter-cat"><option value="">Todas as categorias</option></select>
+    <select id="sort-mode">
+      <option value="az">Nome A-Z</option>
+      <option value="za">Nome Z-A</option>
+      <option value="size-asc">Menor tamanho</option>
+      <option value="size-desc">Maior tamanho</option>
+    </select>
+  </section>
+
+  <!-- ============ CATÁLOGO ============ -->
+  <section id="catalog" class="catalog-grid"></section>
+
+  <!-- ============ PAGINAÇÃO ============ -->
+  <nav class="pagination">
+    <button id="prev-page" class="btn btn-ghost">◀ Página anterior</button>
+    <span id="page-info">Página 1 de 1</span>
+    <button id="next-page" class="btn btn-ghost">Página seguinte ▶</button>
+  </nav>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <!-- Texto do rodapé (editável): -->
+  <p id="footer-attribution">Workin'Store 2026. Todos os direitos reservados.</p>
+</footer>
+
+<!-- ============ SELECTION BAR ============ -->
+<div class="selection-bar">
+  <div class="sel-info">
+    <span class="sel-count-badge" id="sel-badge">0</span>
+    <div>
+      <p class="sel-title" id="sel-title">Nenhum jogo selecionado</p>
+      <p class="sel-sub" id="sel-sub">0.00 GB usados · 0.00 GB restantes</p>
+    </div>
+  </div>
+  <div class="sel-actions">
+    <button class="btn btn-ghost" id="btn-view-sel">Ver lista</button>
+    <button class="btn btn-danger" id="btn-clear-sel">Limpar</button>
+  </div>
+</div>
+
+<!-- ============ MODAL: VER SELEÇÃO ============ -->
+<div class="modal hidden" id="modal-selection">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2>Sua seleção</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="modal-body">
+      <ol id="sel-list"></ol>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-ghost" data-close>Fechar</button>
+      <button class="btn btn-primary" id="btn-open-send">Enviar lista</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ============ MODAL: DADOS DO CLIENTE ============ -->
+<div class="modal hidden" id="modal-userinfo">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2>Seus dados</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="modal-body">
+      <p class="muted">Informe seus dados para enviar sua lista. Eles vão no cabeçalho do JPG.</p>
+      <div class="form-grid">
+        <label>Nome*<input id="u-nome" required /></label>
+        <label>Sobrenome*<input id="u-sobrenome" required /></label>
+        <label>WhatsApp*<input id="u-whatsapp" placeholder="(88) 90000-0000" required /></label>
+        <label>Cidade*<input id="u-cidade" required /></label>
+        <label>UF*<input id="u-uf" maxlength="2" required /></label>
+      </div>
+      <p id="userinfo-err" class="error hidden"></p>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-primary" id="btn-userinfo-continue">Continuar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ============ MODAL: OPÇÕES DE ENVIO ============ -->
+<div class="modal hidden" id="modal-send">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2>Envio da lista</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="modal-body">
+      <div id="list-preview" class="list-preview"></div>
+      <div class="send-actions">
+        <button class="btn btn-primary" id="btn-download-jpg">Baixar JPG</button>
+        <button class="btn btn-primary" id="btn-copy-text">Copiar texto</button>
+        <button class="btn btn-success" id="btn-send-wa-jpg">Enviar JPG via WhatsApp</button>
+        <button class="btn btn-success" id="btn-send-wa-text">Enviar texto via WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ADMIN LOGIN ============ -->
+<div class="modal hidden" id="modal-login">
+  <div class="modal-box small">
+    <header class="modal-head">
+      <h2>Login administrativo</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label>E-mail<input id="login-email" type="email" /></label>
+        <label>Senha<input id="login-pass" type="password" /></label>
+      </div>
+      <p id="login-err" class="error hidden"></p>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-primary" id="btn-login">Entrar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ============ MODAL: PAINEL ADMIN ============ -->
+<div class="modal hidden is-admin-only" id="modal-admin">
+  <div class="modal-box wide">
+    <header class="modal-head">
+      <h2>Painel Administrativo</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="admin-tabs">
+      <button class="tab-btn active" data-tab="games">Jogos</button>
+      <button class="tab-btn" data-tab="lists">Listas de Clientes</button>
+    </div>
+
+    <!-- Aba Jogos -->
+    <div class="tab-panel" data-panel="games">
+      <div class="admin-toolbar">
+        <input type="text" id="admin-search" placeholder="Pesquisa rápida..." />
+        <button class="btn btn-primary" id="btn-new-game">Novo jogo</button>
+        <label class="btn btn-ghost">Importar CSV<input type="file" id="csv-file" accept=".csv" hidden /></label>
+      </div>
+      <div id="admin-games-list" class="admin-list"></div>
+    </div>
+
+    <!-- Aba Listas -->
+    <div class="tab-panel hidden" data-panel="lists">
+      <div id="admin-lists" class="admin-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: EDITAR JOGO ============ -->
+<div class="modal hidden is-admin-only" id="modal-game-edit">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2 id="ge-title">Editar jogo</h2>
+      <button class="modal-close" data-close>✕</button>
+    </header>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label>Nome*<input id="ge-name" /></label>
+        <label>Código (SLUS/SLES)*<input id="ge-code" /></label>
+        <label>Categoria<input id="ge-category" list="cat-list" /></label>
+        <datalist id="cat-list"></datalist>
+        <label>Região<input id="ge-region" placeholder="NTSC/PAL" /></label>
+        <label>Tamanho (GB)*<input id="ge-size" type="number" step="0.01" /></label>
+        <label>Capa (upload)<input id="ge-cover" type="file" accept="image/*" /></label>
+      </div>
+      <div id="ge-preview" class="ge-preview"></div>
+      <p id="ge-err" class="error hidden"></p>
+    </div>
+    <footer class="modal-foot">
+      <button class="btn btn-ghost" data-close>Cancelar</button>
+      <button class="btn btn-danger" id="btn-delete-game">Excluir</button>
+      <button class="btn btn-primary" id="btn-save-game">Salvar</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Área off-screen para renderizar JPG da lista -->
+<div id="jpg-render-area" aria-hidden="true"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<!-- html2canvas para gerar JPG -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
