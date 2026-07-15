@@ -1,22 +1,23 @@
-/* ============================================================
-   Catálogo Retro - script.js
-   HTML + CSS + JS puro com Firebase (Auth + Realtime Database)
-   SDK Modular via CDN.
-   Substitua as credenciais em `firebaseConfig` pelas suas.
-============================================================ */
-// ------------------------------------------------------------
-// IMPORTS FIREBASE (SDK Modular)
-// ------------------------------------------------------------
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getDatabase, ref, onValue, set, push, update, remove, get, child,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-// ============================================================
-// CONFIG FIREBASE (substitua pelas suas credenciais)
-// ============================================================
+/* =========================================================
+ * PS2 Retrô — Catálogo Gamer
+ * Frontend puro + Firebase (Auth + Realtime Database)
+ * ---------------------------------------------------------
+ * ESTRUTURA:
+ *  1.  CONFIGURAÇÃO FIREBASE       → substitua firebaseConfig
+ *  2.  ESTADO GLOBAL
+ *  3.  UTILITÁRIOS (toasts, modais, loader)
+ *  4.  AUTENTICAÇÃO ADMIN
+ *  5.  CARREGAMENTO DE DADOS (settings, games, cats, pendrives)
+ *  6.  ÁREA PÚBLICA (grid, filtros, carrinho, checkout)
+ *  7.  GERAÇÃO DE IMAGEM JPG (Canvas)
+ *  8.  ENVIO WHATSAPP + SALVAR PEDIDO
+ *  9.  PAINEL ADMIN (dashboard, pedidos, jogos, cats, pen, config)
+ * 10.  INICIALIZAÇÃO
+ * ========================================================= */
+/* ============ 1. CONFIGURAÇÃO FIREBASE ============
+ * >>> COLE AQUI as credenciais do seu projeto Firebase.
+ * Console Firebase → ⚙️ Configurações → Suas apps → Config
+ */
 const firebaseConfig = {
   apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
   authDomain: "sua-lista-e6ef3.firebaseapp.com",
@@ -26,630 +27,588 @@ const firebaseConfig = {
   messagingSenderId: "689656568290",
   appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
 };
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 const ADMIN_EMAIL = "admin@admin.com";
-// ============================================================
-// ESTADO GLOBAL
-// ============================================================
+const DEFAULT_WHATSAPP = "5588988470190";
+/* ============ 2. ESTADO GLOBAL ============ */
 const state = {
+  settings: {},
   games: [],
   categories: [],
-  platforms: [],
-  banners: [],
-  settings: {},
-  currentUser: null,
-  isAdmin: false,
-  filters: { search: "", category: "", platform: "", year: "", genre: "", sort: "recent" },
+  pendrives: [],
+  orders: [],
+  cart: [],           // [{id, qty}]
+  selectedPen: null,  // pendrive object
+  filter: { q: "", cat: "", sort: "az" },
 };
-let app, auth, db;
-// ============================================================
-// UTILS
-// ============================================================
+/* ============ 3. UTILITÁRIOS ============ */
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-const escapeHtml = (str = "") =>
-  String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-function showLoading() { $("#loading").classList.add("show"); }
-function hideLoading() { $("#loading").classList.remove("show"); }
-function showToast(msg, type = "") {
-  const el = $("#toast");
-  el.textContent = msg;
-  el.className = "toast show " + type;
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => el.classList.remove("show"), 2600);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+function toast(msg, type = "info") {
+  const c = $("#toast-container");
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = "0"; t.style.transform = "translateX(20px)"; }, 2600);
+  setTimeout(() => t.remove(), 3000);
 }
-function confirmAction(msg) { return window.confirm(msg); }
-function ytEmbedUrl(url) {
-  if (!url) return "";
-  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
-  return m ? `https://www.youtube.com/embed/${m[1]}` : "";
-}
-// ============================================================
-// INIT FIREBASE
-// ============================================================
-function initFirebase() {
-  try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getDatabase(app);
-    onAuthStateChanged(auth, handleAuthChange);
-    subscribeData();
-  } catch (err) {
-    console.error("Erro ao inicializar Firebase:", err);
-    showToast("Configure o firebaseConfig no script.js", "error");
-  }
-}
-// ============================================================
-// AUTH
-// ============================================================
-async function login(email, password) {
-  showLoading();
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (err) {
-    console.error(err);
-    showToast("Falha ao entrar. Verifique e-mail e senha.", "error");
-  } finally { hideLoading(); }
-}
-async function logout() {
-  await signOut(auth);
-  closeAdminPanel();
-  showToast("Sessão encerrada.");
-}
-function handleAuthChange(user) {
-  state.currentUser = user;
-  state.isAdmin = !!(user && user.email === ADMIN_EMAIL);
-  if (user && !state.isAdmin) {
-    showToast("Acesso negado.", "error");
-    signOut(auth);
-    return;
-  }
-  if (state.isAdmin) {
-    closeModal("loginModal");
-    openAdminPanel();
-    showToast("Bem-vindo, admin!", "success");
-  }
-}
-function checkAdmin() { return state.isAdmin && auth.currentUser?.email === ADMIN_EMAIL; }
-// ============================================================
-// SUBSCRIÇÕES (Realtime)
-// ============================================================
-function subscribeData() {
-  onValue(ref(db, "jogos"), (snap) => {
-    const val = snap.val() || {};
-    state.games = Object.entries(val).map(([id, g]) => ({ id, ...g }));
-    renderAll();
-  });
-  onValue(ref(db, "categorias"), (snap) => {
-    const val = snap.val() || {};
-    state.categories = Object.entries(val).map(([id, c]) => ({ id, ...c }));
-    renderCategoriesUI();
-  });
-  onValue(ref(db, "plataformas"), (snap) => {
-    const val = snap.val() || {};
-    state.platforms = Object.entries(val).map(([id, p]) => ({ id, ...p }));
-    renderPlatformsUI();
-  });
-  onValue(ref(db, "banners"), (snap) => {
-    const val = snap.val() || {};
-    state.banners = Object.entries(val).map(([id, b]) => ({ id, ...b }));
-    renderBanner();
-    renderAdminBanners();
-  });
-  onValue(ref(db, "configuracoes"), (snap) => {
-    state.settings = snap.val() || {};
-    applySettings();
+function showLoader(show = true) { $("#global-loader").classList.toggle("hidden", !show); }
+function openModal(id) { $("#" + id).classList.remove("hidden"); }
+function closeModal(id) { $("#" + id).classList.add("hidden"); }
+function confirmDialog(msg) {
+  return new Promise(resolve => {
+    $("#confirm-msg").textContent = msg;
+    openModal("modal-confirm");
+    const yes = $("#confirm-yes"), no = $("#confirm-no");
+    const cleanup = () => { yes.onclick = null; no.onclick = null; closeModal("modal-confirm"); };
+    yes.onclick = () => { cleanup(); resolve(true); };
+    no.onclick = () => { cleanup(); resolve(false); };
   });
 }
-// ============================================================
-// CONFIG UI
-// ============================================================
-function applySettings() {
-  const s = state.settings || {};
-  if (s.nome) { $("#siteName").textContent = s.nome; document.title = s.nome; }
-  if (s.cor) document.documentElement.style.setProperty("--primary", s.cor);
-  if (s.favicon) { const link = document.querySelector("link[rel='icon']"); if (link) link.href = s.favicon; }
-  if (s.rodape) $("#footerText").textContent = s.rodape;
-  const socials = $("#socials");
-  socials.innerHTML = "";
-  const map = { facebook: "Facebook", instagram: "Instagram", youtube: "YouTube", twitter: "X" };
-  Object.entries(map).forEach(([k, label]) => {
-    if (s[k]) socials.insertAdjacentHTML("beforeend", `<a href="${escapeHtml(s[k])}" target="_blank" rel="noopener">${label}</a>`);
-  });
-  // preenche form config
-  $("#s_nome").value = s.nome || "";
-  $("#s_descricao").value = s.descricao || "";
-  $("#s_logo").value = s.logo || "";
-  $("#s_favicon").value = s.favicon || "";
-  $("#s_cor").value = s.cor || "#e50914";
-  $("#s_rodape").value = s.rodape || "";
-  $("#s_facebook").value = s.facebook || "";
-  $("#s_instagram").value = s.instagram || "";
-  $("#s_youtube").value = s.youtube || "";
-  $("#s_twitter").value = s.twitter || "";
-}
-// ============================================================
-// FILTROS / PESQUISA
-// ============================================================
-function loadFilterOptions() {
-  const years = [...new Set(state.games.map((g) => g.ano).filter(Boolean))].sort((a, b) => b - a);
-  const genres = [...new Set(state.games.map((g) => g.genero).filter(Boolean))].sort();
-  fillSelect("#filterCategory", state.categories.map((c) => c.nome), "Todas as categorias");
-  fillSelect("#filterPlatform", state.platforms.map((p) => p.nome), "Todas as plataformas");
-  fillSelect("#filterYear", years, "Todos os anos");
-  fillSelect("#filterGenre", genres, "Todos os gêneros");
-  // datalists admin
-  const dlc = $("#dl_categorias"); if (dlc) dlc.innerHTML = state.categories.map((c) => `<option value="${escapeHtml(c.nome)}">`).join("");
-  const dlp = $("#dl_plataformas"); if (dlp) dlp.innerHTML = state.platforms.map((p) => `<option value="${escapeHtml(p.nome)}">`).join("");
-}
-function fillSelect(sel, items, allLabel) {
-  const el = $(sel); if (!el) return;
-  const cur = el.value;
-  el.innerHTML = `<option value="">${allLabel}</option>` + items.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
-  if (items.includes(cur)) el.value = cur;
-}
-function applyFilters(list) {
-  const { search, category, platform, year, genre, sort } = state.filters;
-  let out = list.filter((g) => g.ativo !== false);
-  if (search) {
-    const q = search.toLowerCase();
-    out = out.filter((g) =>
-      [g.titulo, g.categoria, g.plataforma, g.ano, g.genero].some((v) => String(v || "").toLowerCase().includes(q))
-    );
-  }
-  if (category) out = out.filter((g) => g.categoria === category);
-  if (platform) out = out.filter((g) => g.plataforma === platform);
-  if (year) out = out.filter((g) => String(g.ano) === String(year));
-  if (genre) out = out.filter((g) => g.genero === genre);
-  const byOrdem = (a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0);
-  switch (sort) {
-    case "az": out.sort((a, b) => (a.titulo || "").localeCompare(b.titulo || "")); break;
-    case "za": out.sort((a, b) => (b.titulo || "").localeCompare(a.titulo || "")); break;
-    case "old": out.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); break;
-    default: out.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0) || byOrdem(a, b));
-  }
-  return out;
-}
-// ============================================================
-// RENDER
-// ============================================================
-function renderAll() {
-  loadFilterOptions();
-  const filtered = applyFilters(state.games);
-  const recent = [...filtered].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 12);
-  const featured = filtered.filter((g) => g.destaque).slice(0, 12);
-  const popular = filtered.filter((g) => g.popular).slice(0, 12);
-  renderGrid("#gridRecent", recent);
-  renderGrid("#gridFeatured", featured);
-  renderGrid("#gridPopular", popular);
-  renderGrid("#gridAll", filtered);
-  $("#emptyState").hidden = filtered.length > 0;
-  renderAdminGames();
-  renderStats();
-}
-function renderGrid(sel, list) {
-  const el = $(sel); if (!el) return;
-  if (!list.length) { el.innerHTML = ""; return; }
-  el.innerHTML = list.map(cardHTML).join("");
-  $$(".card", el).forEach((c) => c.addEventListener("click", () => openGameModal(c.dataset.id)));
-}
-function cardHTML(g) {
-  const cover = g.imagem || "https://via.placeholder.com/400x533/14171f/9aa3b2?text=Sem+Imagem";
-  return `
-    <article class="card" data-id="${g.id}" tabindex="0" role="button" aria-label="Ver detalhes de ${escapeHtml(g.titulo)}">
-      <div class="card-cover" style="background-image:url('${escapeHtml(cover)}')" aria-hidden="true"></div>
-      <div class="card-body">
-        <h3 class="card-title">${escapeHtml(g.titulo || "Sem título")}</h3>
-        <div class="card-meta">
-          ${g.plataforma ? `<span class="badge">${escapeHtml(g.plataforma)}</span>` : ""}
-          ${g.ano ? `<span class="badge">${escapeHtml(g.ano)}</span>` : ""}
-          ${g.nota ? `<span class="badge badge-accent">★ ${escapeHtml(g.nota)}</span>` : ""}
-        </div>
-      </div>
-    </article>`;
-}
-function renderBanner() {
-  const track = $("#bannerTrack");
-  const dots = $("#bannerDots");
-  const banners = state.banners.filter((b) => b.ativo !== false).sort((a, b) => (a.ordem || 0) - (b.ordem || 0));
-  if (!banners.length) { track.innerHTML = `<div class="banner-slide active" style="background:linear-gradient(135deg,#221024,#1a1f2c)"><div class="banner-slide-content"><h2>Bem-vindo</h2><p>Explore o catálogo completo de jogos.</p></div></div>`; dots.innerHTML = ""; return; }
-  track.innerHTML = banners.map((b, i) => `
-    <div class="banner-slide ${i === 0 ? "active" : ""}" style="background-image:url('${escapeHtml(b.imagem || "")}')">
-      <div class="banner-slide-content">
-        <h2>${escapeHtml(b.titulo || "")}</h2>
-        <p>${escapeHtml(b.descricao || "")}</p>
-        ${b.link ? `<a class="btn btn-primary" href="${escapeHtml(b.link)}" target="_blank" rel="noopener">${escapeHtml(b.botao || "Saiba mais")}</a>` : ""}
-      </div>
-    </div>`).join("");
-  dots.innerHTML = banners.map((_, i) => `<button class="banner-dot ${i === 0 ? "active" : ""}" role="tab" aria-label="Slide ${i + 1}" data-i="${i}"></button>`).join("");
-  $$(".banner-dot", dots).forEach((d) => d.addEventListener("click", () => setBanner(Number(d.dataset.i))));
-  startBannerAuto();
-}
-let bannerTimer = null, bannerIdx = 0;
-function setBanner(i) {
-  const slides = $$(".banner-slide"); const dots = $$(".banner-dot");
-  if (!slides.length) return;
-  bannerIdx = (i + slides.length) % slides.length;
-  slides.forEach((s, k) => s.classList.toggle("active", k === bannerIdx));
-  dots.forEach((d, k) => d.classList.toggle("active", k === bannerIdx));
-}
-function startBannerAuto() {
-  clearInterval(bannerTimer);
-  bannerTimer = setInterval(() => setBanner(bannerIdx + 1), 6000);
-}
-function renderCategoriesUI() {
-  loadFilterOptions();
-  renderAll();
-  const ul = $("#adminCategoriesList");
-  if (ul) ul.innerHTML = state.categories.map((c) => `
-    <li>
-      <span>${escapeHtml(c.nome)}</span>
-      <span class="row-actions">
-        <button data-edit-cat="${c.id}" data-nome="${escapeHtml(c.nome)}">Editar</button>
-        <button data-del-cat="${c.id}">Excluir</button>
-      </span>
-    </li>`).join("");
-}
-function renderPlatformsUI() {
-  loadFilterOptions();
-  renderAll();
-  const ul = $("#adminPlatformsList");
-  if (ul) ul.innerHTML = state.platforms.map((p) => `
-    <li>
-      <span>${escapeHtml(p.nome)}</span>
-      <span class="row-actions">
-        <button data-edit-plat="${p.id}" data-nome="${escapeHtml(p.nome)}">Editar</button>
-        <button data-del-plat="${p.id}">Excluir</button>
-      </span>
-    </li>`).join("");
-}
-// ============================================================
-// MODAL DETALHES
-// ============================================================
-function openGameModal(id) {
-  const g = state.games.find((x) => x.id === id);
-  if (!g) return;
-  const cover = g.imagem || "https://via.placeholder.com/500x666/14171f/9aa3b2?text=Sem+Imagem";
-  const gallery = (typeof g.galeria === "string" ? g.galeria.split(",") : (g.galeria || [])).map((s) => String(s).trim()).filter(Boolean);
-  const yt = ytEmbedUrl(g.video);
-  $("#modalBody").innerHTML = `
-    <div class="modal-cover" style="background-image:url('${escapeHtml(cover)}')"></div>
-    <div class="modal-info">
-      <h2 id="modalTitle">${escapeHtml(g.titulo || "")}</h2>
-      <div class="card-meta">
-        ${g.plataforma ? `<span class="badge badge-primary">${escapeHtml(g.plataforma)}</span>` : ""}
-        ${g.categoria ? `<span class="badge">${escapeHtml(g.categoria)}</span>` : ""}
-        ${g.nota ? `<span class="badge badge-accent">★ ${escapeHtml(g.nota)}</span>` : ""}
-      </div>
-      <p>${escapeHtml(g.descricao || "")}</p>
-      <div class="info-grid">
-        ${infoRow("Gênero", g.genero)}
-        ${infoRow("Ano", g.ano)}
-        ${infoRow("Jogadores", g.jogadores)}
-        ${infoRow("Idioma", g.idioma)}
-        ${infoRow("Formato", g.formato)}
-        ${infoRow("Tamanho", g.tamanho)}
-        ${infoRow("Empresa", g.empresa)}
-        ${infoRow("Desenvolvedora", g.desenvolvedora)}
-        ${infoRow("Publicadora", g.publicadora)}
-      </div>
-    </div>
-    ${yt ? `<div class="modal-video"><iframe src="${yt}" title="Trailer" allowfullscreen loading="lazy"></iframe></div>` : ""}
-    ${gallery.length ? `<div class="modal-gallery">${gallery.map((src) => `<img loading="lazy" src="${escapeHtml(src)}" alt="Imagem de ${escapeHtml(g.titulo)}" />`).join("")}</div>` : ""}
-  `;
-  openModal("gameModal");
-}
-function infoRow(label, v) { return v ? `<div><strong>${label}</strong>${escapeHtml(v)}</div>` : ""; }
-function openModal(id) { const el = document.getElementById(id); el.classList.add("open"); el.setAttribute("aria-hidden", "false"); }
-function closeModal(id) { const el = document.getElementById(id); el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); }
-// ============================================================
-// ADMIN - PAINEL
-// ============================================================
-function openAdminPanel() { const p = $("#adminPanel"); p.hidden = false; p.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden"; renderAdminGames(); renderStats(); renderAdminBanners(); }
-function closeAdminPanel() { const p = $("#adminPanel"); p.hidden = true; p.setAttribute("aria-hidden", "true"); document.body.style.overflow = ""; }
-function renderStats() {
-  const s = $("#statsGrid"); if (!s) return;
-  const total = state.games.length;
-  const ativos = state.games.filter((g) => g.ativo !== false).length;
-  const inativos = total - ativos;
-  const destaques = state.games.filter((g) => g.destaque).length;
-  const cats = state.categories.length;
-  const plats = state.platforms.length;
-  s.innerHTML = [
-    ["Jogos", total], ["Ativos", ativos], ["Inativos", inativos],
-    ["Destaques", destaques], ["Categorias", cats], ["Plataformas", plats],
-  ].map(([label, value]) => `<div class="stat-card"><div class="label">${label}</div><div class="value">${value}</div></div>`).join("");
-  const latest = [...state.games].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 6);
-  const dl = $("#dashLatest"); if (dl) { dl.innerHTML = latest.map(cardHTML).join(""); $$(".card", dl).forEach((c) => c.addEventListener("click", () => openGameModal(c.dataset.id))); }
-}
-function renderAdminGames() {
-  const tbody = $("#adminGamesBody"); if (!tbody) return;
-  const list = [...state.games].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-  tbody.innerHTML = list.map((g) => `
-    <tr>
-      <td>${escapeHtml(g.titulo || "")}</td>
-      <td>${escapeHtml(g.categoria || "")}</td>
-      <td>${escapeHtml(g.plataforma || "")}</td>
-      <td>${escapeHtml(g.ano || "")}</td>
-      <td>${g.ativo === false ? "Não" : "Sim"}</td>
-      <td class="row-actions">
-        <button data-edit-game="${g.id}">Editar</button>
-        <button data-del-game="${g.id}">Excluir</button>
-      </td>
-    </tr>`).join("");
-}
-function renderAdminBanners() {
-  const ul = $("#adminBannersList"); if (!ul) return;
-  ul.innerHTML = state.banners.sort((a, b) => (a.ordem || 0) - (b.ordem || 0)).map((b) => `
-    <li>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <img src="${escapeHtml(b.imagem || "")}" alt="" loading="lazy" />
-        <div><strong>${escapeHtml(b.titulo || "(sem título)")}</strong><br /><small>${escapeHtml(b.descricao || "")}</small></div>
-      </div>
-      <div class="row-actions">
-        <button data-edit-banner="${b.id}">Editar</button>
-        <button data-del-banner="${b.id}">Excluir</button>
-      </div>
-    </li>`).join("");
-}
-// ============================================================
-// CRUD - JOGOS
-// ============================================================
-function fillGameForm(g = {}) {
-  $("#gameId").value = g.id || "";
-  $("#g_titulo").value = g.titulo || "";
-  $("#g_categoria").value = g.categoria || "";
-  $("#g_plataforma").value = g.plataforma || "";
-  $("#g_ano").value = g.ano || "";
-  $("#g_genero").value = g.genero || "";
-  $("#g_empresa").value = g.empresa || "";
-  $("#g_desenvolvedora").value = g.desenvolvedora || "";
-  $("#g_publicadora").value = g.publicadora || "";
-  $("#g_idioma").value = g.idioma || "";
-  $("#g_jogadores").value = g.jogadores || "";
-  $("#g_formato").value = g.formato || "";
-  $("#g_tamanho").value = g.tamanho || "";
-  $("#g_nota").value = g.nota || "";
-  $("#g_ordem").value = g.ordem || "";
-  $("#g_imagem").value = g.imagem || "";
-  $("#g_galeria").value = Array.isArray(g.galeria) ? g.galeria.join(", ") : (g.galeria || "");
-  $("#g_video").value = g.video || "";
-  $("#g_descricao").value = g.descricao || "";
-  $("#g_destaque").checked = !!g.destaque;
-  $("#g_popular").checked = !!g.popular;
-  $("#g_novo").checked = !!g.novo;
-  $("#g_ativo").checked = g.ativo !== false;
-}
-async function saveGame(e) {
-  e.preventDefault();
-  if (!checkAdmin()) return;
-  const id = $("#gameId").value;
-  const titulo = $("#g_titulo").value.trim();
-  if (!titulo) return showToast("Título é obrigatório", "error");
-  const data = {
-    titulo,
-    descricao: $("#g_descricao").value.trim(),
-    categoria: $("#g_categoria").value.trim(),
-    plataforma: $("#g_plataforma").value.trim(),
-    ano: Number($("#g_ano").value) || null,
-    genero: $("#g_genero").value.trim(),
-    empresa: $("#g_empresa").value.trim(),
-    desenvolvedora: $("#g_desenvolvedora").value.trim(),
-    publicadora: $("#g_publicadora").value.trim(),
-    idioma: $("#g_idioma").value.trim(),
-    jogadores: $("#g_jogadores").value.trim(),
-    formato: $("#g_formato").value.trim(),
-    tamanho: $("#g_tamanho").value.trim(),
-    nota: Number($("#g_nota").value) || null,
-    popular: $("#g_popular").checked,
-    destaque: $("#g_destaque").checked,
-    novo: $("#g_novo").checked,
-    ativo: $("#g_ativo").checked,
-    imagem: $("#g_imagem").value.trim(),
-    galeria: $("#g_galeria").value.split(",").map((s) => s.trim()).filter(Boolean),
-    video: $("#g_video").value.trim(),
-    ordem: Number($("#g_ordem").value) || 0,
-    timestamp: id ? (state.games.find((x) => x.id === id)?.timestamp || Date.now()) : Date.now(),
-  };
-  showLoading();
-  try {
-    if (id) await update(ref(db, "jogos/" + id), data);
-    else await push(ref(db, "jogos"), data);
-    showToast("Jogo salvo!", "success");
-    hideGameForm();
-  } catch (err) { console.error(err); showToast("Erro ao salvar.", "error"); }
-  finally { hideLoading(); }
-}
-async function deleteGame(id) {
-  if (!checkAdmin()) return;
-  if (!confirmAction("Excluir este jogo?")) return;
-  await remove(ref(db, "jogos/" + id));
-  showToast("Jogo excluído.", "success");
-}
-function showGameForm(g) { $("#gameFormWrapper").hidden = false; fillGameForm(g || {}); window.scrollTo({ top: 0, behavior: "smooth" }); }
-function hideGameForm() { $("#gameFormWrapper").hidden = true; $("#gameForm").reset(); $("#gameId").value = ""; }
-// ============================================================
-// CRUD - CATEGORIAS
-// ============================================================
-async function saveCategory(e) {
-  e.preventDefault();
-  if (!checkAdmin()) return;
-  const id = $("#catId").value; const nome = $("#catNome").value.trim();
-  if (!nome) return;
-  if (id) await update(ref(db, "categorias/" + id), { nome });
-  else await push(ref(db, "categorias"), { nome });
-  $("#catId").value = ""; $("#catNome").value = ""; $("#btnCancelCat").hidden = true;
-  showToast("Categoria salva.", "success");
-}
-async function deleteCategory(id) {
-  if (!checkAdmin()) return;
-  if (!confirmAction("Excluir categoria?")) return;
-  await remove(ref(db, "categorias/" + id));
-}
-// ============================================================
-// CRUD - PLATAFORMAS
-// ============================================================
-async function savePlatform(e) {
-  e.preventDefault();
-  if (!checkAdmin()) return;
-  const id = $("#platId").value; const nome = $("#platNome").value.trim();
-  if (!nome) return;
-  if (id) await update(ref(db, "plataformas/" + id), { nome });
-  else await push(ref(db, "plataformas"), { nome });
-  $("#platId").value = ""; $("#platNome").value = ""; $("#btnCancelPlat").hidden = true;
-  showToast("Plataforma salva.", "success");
-}
-async function deletePlatform(id) {
-  if (!checkAdmin()) return;
-  if (!confirmAction("Excluir plataforma?")) return;
-  await remove(ref(db, "plataformas/" + id));
-}
-// ============================================================
-// CRUD - BANNERS
-// ============================================================
-async function saveBanner(e) {
-  e.preventDefault();
-  if (!checkAdmin()) return;
-  const id = $("#bId").value;
-  const data = {
-    imagem: $("#b_imagem").value.trim(),
-    titulo: $("#b_titulo").value.trim(),
-    descricao: $("#b_descricao").value.trim(),
-    botao: $("#b_botao").value.trim(),
-    link: $("#b_link").value.trim(),
-    ordem: Number($("#b_ordem").value) || 0,
-    ativo: $("#b_ativo").checked,
-  };
-  if (!data.imagem) return showToast("Imagem obrigatória", "error");
-  if (id) await update(ref(db, "banners/" + id), data);
-  else await push(ref(db, "banners"), data);
-  $("#bannerForm").reset(); $("#bId").value = "";
-  showToast("Banner salvo.", "success");
-}
-async function deleteBanner(id) {
-  if (!checkAdmin()) return;
-  if (!confirmAction("Excluir banner?")) return;
-  await remove(ref(db, "banners/" + id));
-}
-// ============================================================
-// CONFIGURAÇÕES
-// ============================================================
-async function saveSettings(e) {
-  e.preventDefault();
-  if (!checkAdmin()) return;
-  const data = {
-    nome: $("#s_nome").value.trim(),
-    descricao: $("#s_descricao").value.trim(),
-    logo: $("#s_logo").value.trim(),
-    favicon: $("#s_favicon").value.trim(),
-    cor: $("#s_cor").value,
-    rodape: $("#s_rodape").value.trim(),
-    facebook: $("#s_facebook").value.trim(),
-    instagram: $("#s_instagram").value.trim(),
-    youtube: $("#s_youtube").value.trim(),
-    twitter: $("#s_twitter").value.trim(),
-  };
-  await set(ref(db, "configuracoes"), data);
-  showToast("Configurações salvas.", "success");
-}
-// ============================================================
-// EVENTOS
-// ============================================================
-function bindEvents() {
-  // Menu mobile
-  $("#menuToggle").addEventListener("click", () => {
-    const nav = $("#mainNav"); const isOpen = nav.classList.toggle("open");
-    $("#menuToggle").setAttribute("aria-expanded", String(isOpen));
-  });
-  // Pesquisa
-  $("#searchInput").addEventListener("input", (e) => { state.filters.search = e.target.value; renderAll(); });
-  // Filtros
-  ["Category", "Platform", "Year", "Genre", "Sort"].forEach((k) => {
-    const key = k.toLowerCase();
-    $(`#filter${k}`).addEventListener("change", (e) => { state.filters[key] = e.target.value; renderAll(); });
-  });
-  $("#btnClearFilters").addEventListener("click", () => {
-    state.filters = { search: "", category: "", platform: "", year: "", genre: "", sort: "recent" };
-    $("#searchInput").value = "";
-    ["#filterCategory", "#filterPlatform", "#filterYear", "#filterGenre"].forEach((s) => ($(s).value = ""));
-    $("#filterSort").value = "recent";
-    renderAll();
-  });
-  // Modais
-  $$("[data-close]").forEach((el) => el.addEventListener("click", (e) => {
-    const modal = e.target.closest(".modal"); if (modal) closeModal(modal.id);
-  }));
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") $$(".modal.open").forEach((m) => closeModal(m.id));
-  });
-  // Login modal
-  $("#btnAdminOpen").addEventListener("click", () => {
-    if (state.isAdmin) openAdminPanel();
-    else openModal("loginModal");
-  });
-  $("#loginForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    login($("#loginEmail").value.trim(), $("#loginPassword").value);
-  });
-  // Admin panel
-  $("#btnLogout").addEventListener("click", logout);
-  $("#btnAdminClose").addEventListener("click", closeAdminPanel);
-  // Tabs
-  $$(".tab").forEach((t) => t.addEventListener("click", () => {
-    $$(".tab").forEach((x) => x.classList.remove("active"));
-    $$(".tab-panel").forEach((x) => x.classList.remove("active"));
-    t.classList.add("active");
-    $(`.tab-panel[data-panel="${t.dataset.tab}"]`).classList.add("active");
-  }));
-  // Games CRUD
-  $("#btnNewGame").addEventListener("click", () => showGameForm(null));
-  $("#btnCancelGame").addEventListener("click", hideGameForm);
-  $("#gameForm").addEventListener("submit", saveGame);
-  document.addEventListener("click", (e) => {
-    const eg = e.target.closest("[data-edit-game]");
-    if (eg) { const g = state.games.find((x) => x.id === eg.dataset.editGame); if (g) showGameForm(g); }
-    const dg = e.target.closest("[data-del-game]");
-    if (dg) deleteGame(dg.dataset.delGame);
-    const ec = e.target.closest("[data-edit-cat]");
-    if (ec) { $("#catId").value = ec.dataset.editCat; $("#catNome").value = ec.dataset.nome; $("#btnCancelCat").hidden = false; }
-    const dc = e.target.closest("[data-del-cat]");
-    if (dc) deleteCategory(dc.dataset.delCat);
-    const ep = e.target.closest("[data-edit-plat]");
-    if (ep) { $("#platId").value = ep.dataset.editPlat; $("#platNome").value = ep.dataset.nome; $("#btnCancelPlat").hidden = false; }
-    const dp = e.target.closest("[data-del-plat]");
-    if (dp) deletePlatform(dp.dataset.delPlat);
-    const eb = e.target.closest("[data-edit-banner]");
-    if (eb) {
-      const b = state.banners.find((x) => x.id === eb.dataset.editBanner);
-      if (b) { $("#bId").value = b.id; $("#b_imagem").value = b.imagem || ""; $("#b_titulo").value = b.titulo || "";
-        $("#b_descricao").value = b.descricao || ""; $("#b_botao").value = b.botao || "";
-        $("#b_link").value = b.link || ""; $("#b_ordem").value = b.ordem || 0; $("#b_ativo").checked = b.ativo !== false;
-        window.scrollTo({ top: 0, behavior: "smooth" }); }
-    }
-    const db2 = e.target.closest("[data-del-banner]");
-    if (db2) deleteBanner(db2.dataset.delBanner);
-  });
-  // Categoria / Plataforma / Banner / Settings
-  $("#categoryForm").addEventListener("submit", saveCategory);
-  $("#btnCancelCat").addEventListener("click", () => { $("#catId").value = ""; $("#catNome").value = ""; $("#btnCancelCat").hidden = true; });
-  $("#platformForm").addEventListener("submit", savePlatform);
-  $("#btnCancelPlat").addEventListener("click", () => { $("#platId").value = ""; $("#platNome").value = ""; $("#btnCancelPlat").hidden = true; });
-  $("#bannerForm").addEventListener("submit", saveBanner);
-  $("#btnCancelBanner").addEventListener("click", () => { $("#bannerForm").reset(); $("#bId").value = ""; });
-  $("#settingsForm").addEventListener("submit", saveSettings);
-  // Scroll top
-  const btnTop = $("#btnTop");
-  window.addEventListener("scroll", () => { btnTop.hidden = window.scrollY < 400; });
-  btnTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
-  // Nav categorias/plataformas → scroll para filtros
-  $$("[data-filter-nav]").forEach((a) => a.addEventListener("click", (e) => {
-    e.preventDefault();
-    document.querySelector(".filters").scrollIntoView({ behavior: "smooth", block: "start" });
-  }));
-}
-// ============================================================
-// BOOT
-// ============================================================
-document.addEventListener("DOMContentLoaded", () => {
-  bindEvents();
-  initFirebase();
+function fmtGB(n) { return (Number(n) || 0).toFixed(2) + " GB"; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+/* Ripple effect */
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn");
+  if (!btn) return;
+  const r = btn.getBoundingClientRect();
+  btn.style.setProperty("--x", (e.clientX - r.left) + "px");
+  btn.style.setProperty("--y", (e.clientY - r.top) + "px");
 });
+/* Fechar modais no backdrop */
+document.addEventListener("click", (e) => {
+  const cls = e.target.dataset.close;
+  if (cls) closeModal(cls);
+});
+/* ============ 4. AUTENTICAÇÃO ADMIN ============ */
+$("#btn-admin-login").addEventListener("click", () => openModal("modal-login"));
+$("#login-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const email = fd.get("email").trim();
+  const password = fd.get("password");
+  if (email !== ADMIN_EMAIL) { toast("Acesso não autorizado.", "error"); return; }
+  try {
+    showLoader(true);
+    await auth.signInWithEmailAndPassword(email, password);
+    closeModal("modal-login");
+  } catch (err) {
+    toast("Falha no login: " + err.message, "error");
+  } finally { showLoader(false); }
+});
+auth.onAuthStateChanged((user) => {
+  if (user && user.email === ADMIN_EMAIL) {
+    $("#public-area").classList.add("hidden");
+    $("#admin-area").classList.remove("hidden");
+    bootAdmin();
+  } else {
+    if (user) { auth.signOut(); toast("Acesso não autorizado.", "error"); }
+    $("#admin-area").classList.add("hidden");
+    $("#public-area").classList.remove("hidden");
+  }
+});
+$("#btn-logout").addEventListener("click", () => auth.signOut());
+/* ============ 5. CARREGAMENTO DE DADOS ============ */
+function listen(path, cb) { db.ref(path).on("value", s => cb(s.val() || null)); }
+function applySettings(s) {
+  state.settings = s || {};
+  const st = state.settings;
+  document.title = st.title || "PS2 Retrô";
+  $("#site-title").textContent = st.displayName || st.title || "PS2 Retrô";
+  if (st.logo) $("#site-logo").src = st.logo;
+  if (st.favicon) $("#favicon").href = st.favicon;
+  if (st.primary) document.documentElement.style.setProperty("--primary", st.primary);
+  if (st.secondary) document.documentElement.style.setProperty("--secondary", st.secondary);
+  if (st.bgImage) document.documentElement.style.setProperty("--bg-image", `url("${st.bgImage}")`);
+  document.body.classList.toggle("theme-light", st.theme === "light");
+  $("#footer-text").textContent = st.footer || "© PS2 Retrô";
+}
+listen("settings", applySettings);
+listen("games", (v) => { state.games = objToArr(v); renderGames(); renderAdminGames(); populateCategoryFilter(); refreshStats(); });
+listen("categories", (v) => { state.categories = objToArr(v); populateCategoryFilter(); renderAdminCategories(); populateGameFormCats(); refreshStats(); });
+listen("pendrives", (v) => {
+  state.pendrives = objToArr(v);
+  if (!state.pendrives.length) seedDefaultPendrives();
+  else { renderPendriveSelect(); renderAdminPendrives(); updateCapacityUI(); }
+});
+listen("orders", (v) => { state.orders = objToArr(v); renderOrders(); refreshStats(); });
+function objToArr(obj) { return obj ? Object.entries(obj).map(([id, v]) => ({ id, ...v })) : []; }
+async function seedDefaultPendrives() {
+  const defaults = [
+    { label: "32GB", real: 28.5 },
+    { label: "64GB", real: 59.4 },
+    { label: "128GB", real: 116.7 },
+  ];
+  for (const p of defaults) await db.ref("pendrives").push(p);
+}
+/* ============ 6. ÁREA PÚBLICA ============ */
+function renderPendriveSelect() {
+  const sel = $("#pendrive-select");
+  sel.innerHTML = "";
+  state.pendrives.forEach(p => {
+    const o = document.createElement("option");
+    o.value = p.id; o.textContent = `${p.label} (${p.real} GB)`;
+    sel.appendChild(o);
+  });
+  if (!state.selectedPen) state.selectedPen = state.pendrives[0];
+  sel.value = state.selectedPen?.id || "";
+  updateCapacityUI();
+}
+$("#pendrive-select").addEventListener("change", (e) => {
+  state.selectedPen = state.pendrives.find(p => p.id === e.target.value);
+  updateCapacityUI();
+});
+function populateCategoryFilter() {
+  const sel = $("#category-filter");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todas categorias</option>';
+  state.categories.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.nome; o.textContent = c.nome;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+$("#search-input").addEventListener("input", (e) => { state.filter.q = e.target.value.toLowerCase(); renderGames(); });
+$("#category-filter").addEventListener("change", (e) => { state.filter.cat = e.target.value; renderGames(); });
+$("#sort-select").addEventListener("change", (e) => { state.filter.sort = e.target.value; renderGames(); });
+function renderGames() {
+  const grid = $("#games-grid");
+  let list = [...state.games];
+  const { q, cat, sort } = state.filter;
+  if (q) list = list.filter(g => (g.nome || "").toLowerCase().includes(q));
+  if (cat) list = list.filter(g => g.categoria === cat);
+  const cmp = {
+    az: (a, b) => a.nome.localeCompare(b.nome),
+    za: (a, b) => b.nome.localeCompare(a.nome),
+    "size-asc": (a, b) => a.tamanho - b.tamanho,
+    "size-desc": (a, b) => b.tamanho - a.tamanho,
+  };
+  list.sort(cmp[sort]);
+  $("#games-empty").classList.toggle("hidden", list.length > 0);
+  grid.innerHTML = list.map(g => `
+    <article class="game-card" data-id="${g.id}">
+      <div class="cover" style="background-image:url('${g.capa || ""}')">
+        <span class="size">${(g.tamanho || 0).toFixed(2)} GB</span>
+      </div>
+      <div class="info">
+        <h4 title="${g.nome}">${g.nome}</h4>
+        <span>${g.categoria || ""}</span>
+        <button class="add" data-add="${g.id}">+ Adicionar</button>
+      </div>
+    </article>
+  `).join("");
+  grid.querySelectorAll(".game-card").forEach(card => {
+    card.addEventListener("click", (e) => {
+      if (e.target.matches("[data-add]")) { addToCart(card.dataset.id); return; }
+      openGameDetail(card.dataset.id);
+    });
+  });
+}
+function openGameDetail(id) {
+  const g = state.games.find(x => x.id === id); if (!g) return;
+  $("#mg-title").textContent = g.nome;
+  $("#mg-cover").src = g.capa || "";
+  $("#mg-cat").textContent = g.categoria || "-";
+  $("#mg-size").textContent = (g.tamanho || 0).toFixed(2);
+  $("#mg-compat").textContent = g.compatibilidade || "-";
+  $("#mg-desc").textContent = g.descricao || "";
+  $("#mg-add").onclick = () => { addToCart(id); closeModal("modal-game"); };
+  openModal("modal-game");
+}
+/* --- Carrinho --- */
+function addToCart(id) {
+  const it = state.cart.find(c => c.id === id);
+  if (it) it.qty += 1; else state.cart.push({ id, qty: 1 });
+  toast("Adicionado à lista", "success");
+  renderCart();
+}
+function removeFromCart(id) { state.cart = state.cart.filter(c => c.id !== id); renderCart(); }
+function changeQty(id, delta) {
+  const it = state.cart.find(c => c.id === id); if (!it) return;
+  it.qty = Math.max(1, it.qty + delta); renderCart();
+}
+function totalUsedGB() {
+  return state.cart.reduce((sum, c) => {
+    const g = state.games.find(x => x.id === c.id);
+    return sum + (g ? g.tamanho * c.qty : 0);
+  }, 0);
+}
+$("#btn-open-cart").addEventListener("click", () => { renderCart(); openModal("modal-cart"); });
+function renderCart() {
+  $("#cart-count").textContent = state.cart.reduce((s, c) => s + c.qty, 0);
+  const box = $("#cart-items");
+  $("#cart-empty").classList.toggle("hidden", state.cart.length > 0);
+  box.innerHTML = state.cart.map(c => {
+    const g = state.games.find(x => x.id === c.id); if (!g) return "";
+    return `
+      <div class="cart-item">
+        <img src="${g.capa || ""}" alt="">
+        <div>
+          <div class="name">${g.nome}</div>
+          <div class="meta">${g.categoria} • ${(g.tamanho * c.qty).toFixed(2)} GB</div>
+        </div>
+        <div class="qty">
+          <button data-dec="${g.id}">−</button>
+          <span>${c.qty}</span>
+          <button data-inc="${g.id}">+</button>
+        </div>
+        <button class="remove" data-rem="${g.id}">✕</button>
+      </div>`;
+  }).join("");
+  box.querySelectorAll("[data-inc]").forEach(b => b.onclick = () => changeQty(b.dataset.inc, +1));
+  box.querySelectorAll("[data-dec]").forEach(b => b.onclick = () => changeQty(b.dataset.dec, -1));
+  box.querySelectorAll("[data-rem]").forEach(b => b.onclick = () => removeFromCart(b.dataset.rem));
+  updateCapacityUI();
+}
+function updateCapacityUI() {
+  const pen = state.selectedPen;
+  const used = totalUsedGB();
+  const cap = pen ? Number(pen.real) : 0;
+  const free = Math.max(0, cap - used);
+  const pct = cap ? Math.min(100, (used / cap) * 100) : 0;
+  $("#cap-pendrive").textContent = pen ? `${pen.label} (${cap} GB)` : "-";
+  $("#cap-used").textContent = fmtGB(used);
+  $("#cap-free").textContent = fmtGB(free);
+  const bar = $("#cap-bar");
+  bar.style.width = pct + "%";
+  const over = used > cap;
+  bar.classList.toggle("over", over);
+  const msg = $("#cap-msg");
+  if (over) { msg.className = "cap-msg error"; msg.textContent = "A lista excedeu a capacidade do pendrive escolhido. Remova alguns jogos ou escolha um pendrive maior."; }
+  else if (used > 0) { msg.className = "cap-msg ok"; msg.textContent = `Ocupado ${pct.toFixed(1)}%`; }
+  else { msg.textContent = ""; }
+  $("#btn-finalize").disabled = over || state.cart.length === 0;
+  $("#btn-finalize").style.opacity = ($("#btn-finalize").disabled) ? .5 : 1;
+}
+/* --- Checkout --- */
+$("#checkout-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!state.cart.length) return toast("Sua lista está vazia", "warn");
+  if (!state.selectedPen) return toast("Escolha um pendrive", "warn");
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  fd.uf = (fd.uf || "").toUpperCase();
+  await finalizeOrder(fd);
+});
+async function finalizeOrder(customer) {
+  try {
+    showLoader(true);
+    const pen = state.selectedPen;
+    const items = state.cart.map(c => {
+      const g = state.games.find(x => x.id === c.id);
+      return { id: g.id, nome: g.nome, categoria: g.categoria, tamanho: g.tamanho, qty: c.qty };
+    });
+    const used = totalUsedGB();
+    const free = Math.max(0, pen.real - used);
+    const now = new Date();
+    const jpgBase64 = await generateListImage({ customer, pen, items, used, free, now });
+    const order = {
+      ...customer,
+      pendrive: pen.label,
+      pendriveReal: pen.real,
+      usado: used,
+      restante: free,
+      lista: items,
+      data: now.toLocaleDateString("pt-BR"),
+      hora: now.toLocaleTimeString("pt-BR"),
+      timestamp: now.getTime(),
+      status: "pendente",
+      imagem: jpgBase64,
+    };
+    const ref = await db.ref("orders").push(order);
+    toast("Lista salva! Abrindo WhatsApp...", "success");
+    openWhatsApp({ ...order, id: ref.key });
+    // limpar
+    state.cart = []; renderCart(); closeModal("modal-cart");
+    e && e.target && e.target.reset && e.target.reset();
+  } catch (err) {
+    console.error(err); toast("Erro ao finalizar: " + err.message, "error");
+  } finally { showLoader(false); }
+}
+/* ============ 7. GERAÇÃO DE IMAGEM JPG ============ */
+async function generateListImage({ customer, pen, items, used, free, now }) {
+  const W = 900;
+  const headerH = 240;
+  const rowH = 30;
+  const footerH = 90;
+  const H = headerH + items.length * rowH + footerH + 40;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  // Fundo gradient
+  const grd = ctx.createLinearGradient(0, 0, W, H);
+  grd.addColorStop(0, "#0b0f1e"); grd.addColorStop(1, "#1a1040");
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+  // Header
+  ctx.fillStyle = "rgba(0,224,255,0.08)"; ctx.fillRect(0, 0, W, headerH);
+  ctx.fillStyle = "#00e0ff"; ctx.font = "bold 34px Orbitron, sans-serif";
+  ctx.fillText(state.settings.displayName || "PS2 Retrô", 30, 55);
+  ctx.fillStyle = "#a855f7"; ctx.font = "600 16px Rajdhani, sans-serif";
+  ctx.fillText("Catálogo Gamer — Lista de Jogos", 30, 80);
+  ctx.fillStyle = "#e8ecff"; ctx.font = "500 16px Rajdhani, sans-serif";
+  const linhas = [
+    `Data: ${now.toLocaleString("pt-BR")}`,
+    `Cliente: ${customer.nome} ${customer.sobrenome}`,
+    `Cidade/UF: ${customer.cidade} - ${customer.uf}`,
+    `WhatsApp: ${customer.whatsapp}`,
+    `Pendrive: ${pen.label} (${pen.real} GB)`,
+    `Usado: ${used.toFixed(2)} GB • Restante: ${free.toFixed(2)} GB`,
+  ];
+  linhas.forEach((t, i) => ctx.fillText(t, 30, 120 + i * 20));
+  // Tabela
+  let y = headerH + 20;
+  ctx.fillStyle = "#a855f7"; ctx.font = "bold 14px Rajdhani, sans-serif";
+  ctx.fillText("#", 30, y); ctx.fillText("Jogo", 70, y);
+  ctx.fillText("Categoria", 540, y); ctx.fillText("GB", 820, y);
+  y += 10; ctx.strokeStyle = "rgba(255,255,255,.15)"; ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W - 20, y); ctx.stroke();
+  y += 20;
+  ctx.font = "500 14px Rajdhani, sans-serif"; ctx.fillStyle = "#e8ecff";
+  items.forEach((g, i) => {
+    ctx.fillText(String(i + 1), 30, y);
+    ctx.fillText(truncate(ctx, g.nome + (g.qty > 1 ? ` x${g.qty}` : ""), 460), 70, y);
+    ctx.fillText(truncate(ctx, g.categoria || "-", 260), 540, y);
+    ctx.fillText((g.tamanho * g.qty).toFixed(2), 820, y);
+    y += rowH;
+  });
+  // Footer
+  y += 10; ctx.strokeStyle = "rgba(0,224,255,.4)"; ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W - 20, y); ctx.stroke();
+  y += 30;
+  ctx.fillStyle = "#00e0ff"; ctx.font = "bold 18px Orbitron, sans-serif";
+  ctx.fillText(`Total: ${items.reduce((s, g) => s + g.qty, 0)} jogos • ${used.toFixed(2)} GB`, 30, y);
+  return c.toDataURL("image/jpeg", 0.9);
+}
+function truncate(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  while (text.length && ctx.measureText(text + "...").width > maxW) text = text.slice(0, -1);
+  return text + "...";
+}
+/* ============ 8. WHATSAPP ============ */
+function openWhatsApp(o) {
+  const wpp = (state.settings.whatsapp || DEFAULT_WHATSAPP).replace(/\D/g, "");
+  const txt =
+`*Nova Lista PS2 Retrô*
+Nome: ${o.nome} ${o.sobrenome}
+Cidade/UF: ${o.cidade} - ${o.uf}
+WhatsApp: ${o.whatsapp}
+Pendrive: ${o.pendrive}
+Qtd. jogos: ${o.lista.reduce((s, g) => s + g.qty, 0)}
+Espaço utilizado: ${o.usado.toFixed(2)} GB
+Espaço restante: ${o.restante.toFixed(2)} GB
+Lista enviada pelo site.`;
+  const url = `https://wa.me/${wpp}?text=${encodeURIComponent(txt)}`;
+  window.open(url, "_blank");
+}
+/* ============ 9. PAINEL ADMIN ============ */
+function bootAdmin() {
+  $$(".admin-link[data-tab]").forEach(a => a.onclick = () => switchTab(a.dataset.tab));
+  loadSettingsIntoForm();
+}
+function switchTab(tab) {
+  $$(".admin-link").forEach(a => a.classList.toggle("active", a.dataset.tab === tab));
+  $$(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+}
+function refreshStats() {
+  if (!$("#st-orders")) return;
+  $("#st-orders").textContent = state.orders.length;
+  $("#st-games").textContent = state.games.length;
+  $("#st-cats").textContent = state.categories.length;
+  $("#st-pend").textContent = state.orders.filter(o => o.status === "pendente").length;
+}
+/* --- Pedidos --- */
+$("#orders-search").addEventListener("input", renderOrders);
+$("#orders-sort").addEventListener("change", renderOrders);
+function renderOrders() {
+  const box = $("#orders-list"); if (!box) return;
+  const q = $("#orders-search")?.value.toLowerCase() || "";
+  const sort = $("#orders-sort")?.value || "recent";
+  let list = [...state.orders];
+  if (q) list = list.filter(o => `${o.nome} ${o.sobrenome} ${o.cidade} ${o.whatsapp}`.toLowerCase().includes(q));
+  const sorters = {
+    recent: (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
+    old: (a, b) => (a.timestamp || 0) - (b.timestamp || 0),
+    city: (a, b) => (a.cidade || "").localeCompare(b.cidade || ""),
+    name: (a, b) => (a.nome || "").localeCompare(b.nome || ""),
+    status: (a, b) => (a.status || "").localeCompare(b.status || ""),
+  };
+  list.sort(sorters[sort]);
+  box.innerHTML = `
+    <table class="data">
+      <thead><tr><th>Data</th><th>Cliente</th><th>Cidade</th><th>Pendrive</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${list.map(o => `
+          <tr>
+            <td>${o.data || ""}<br><small>${o.hora || ""}</small></td>
+            <td>${o.nome} ${o.sobrenome}<br><small>${o.whatsapp}</small></td>
+            <td>${o.cidade}/${o.uf}</td>
+            <td>${o.pendrive}</td>
+            <td>${(o.usado || 0).toFixed(2)} GB</td>
+            <td><span class="status ${o.status === "finalizada" ? "done" : "pending"}">${o.status}</span></td>
+            <td class="actions-cell">
+              <button data-view="${o.id}">👁️</button>
+              <button data-dl="${o.id}">⬇️</button>
+              ${o.status !== "finalizada" ? `<button data-done="${o.id}">✔</button>` : ""}
+              <button class="del" data-delo="${o.id}">🗑️</button>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+  box.querySelectorAll("[data-view]").forEach(b => b.onclick = () => viewOrderImg(b.dataset.view));
+  box.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => downloadOrderImg(b.dataset.dl));
+  box.querySelectorAll("[data-done]").forEach(b => b.onclick = () => setOrderStatus(b.dataset.done, "finalizada"));
+  box.querySelectorAll("[data-delo]").forEach(b => b.onclick = () => deleteOrder(b.dataset.delo));
+}
+function viewOrderImg(id) {
+  const o = state.orders.find(x => x.id === id); if (!o?.imagem) return toast("Sem imagem", "warn");
+  const w = window.open("");
+  w.document.write(`<title>Lista ${o.nome}</title><body style="margin:0;background:#000;text-align:center"><img src="${o.imagem}" style="max-width:100%">`);
+}
+function downloadOrderImg(id) {
+  const o = state.orders.find(x => x.id === id); if (!o?.imagem) return;
+  const a = document.createElement("a");
+  a.href = o.imagem; a.download = `lista-${o.nome}-${o.sobrenome}.jpg`; a.click();
+}
+async function setOrderStatus(id, status) {
+  await db.ref("orders/" + id).update({ status });
+  toast("Status atualizado", "success");
+}
+async function deleteOrder(id) {
+  if (!(await confirmDialog("Excluir pedido definitivamente?"))) return;
+  await db.ref("orders/" + id).remove();
+  toast("Pedido excluído", "success");
+}
+/* --- Jogos --- */
+$("#btn-new-game")?.addEventListener("click", () => openGameForm());
+function renderAdminGames() {
+  const box = $("#admin-games-list"); if (!box) return;
+  box.innerHTML = `
+    <table class="data">
+      <thead><tr><th>Capa</th><th>Nome</th><th>Categoria</th><th>GB</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${state.games.map(g => `
+          <tr>
+            <td><img src="${g.capa || ""}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:#0b0f1e"></td>
+            <td>${g.nome}</td><td>${g.categoria || ""}</td><td>${(g.tamanho || 0).toFixed(2)}</td>
+            <td class="actions-cell">
+              <button data-edit="${g.id}">✏️</button>
+              <button class="del" data-delg="${g.id}">🗑️</button>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+  box.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => openGameForm(b.dataset.edit));
+  box.querySelectorAll("[data-delg]").forEach(b => b.onclick = async () => {
+    if (!(await confirmDialog("Excluir este jogo?"))) return;
+    await db.ref("games/" + b.dataset.delg).remove();
+    toast("Excluído", "success");
+  });
+}
+function populateGameFormCats() {
+  const sel = $("#gf-cat"); if (!sel) return;
+  sel.innerHTML = state.categories.map(c => `<option>${c.nome}</option>`).join("");
+}
+function openGameForm(id) {
+  const form = $("#form-game"); form.reset();
+  populateGameFormCats();
+  if (id) {
+    const g = state.games.find(x => x.id === id); if (!g) return;
+    $("#gf-title").textContent = "Editar jogo";
+    form.id.value = g.id;
+    form.nome.value = g.nome || ""; form.categoria.value = g.categoria || "";
+    form.capa.value = g.capa || ""; form.tamanho.value = g.tamanho || 0;
+    form.compatibilidade.value = g.compatibilidade || ""; form.descricao.value = g.descricao || "";
+  } else { $("#gf-title").textContent = "Novo jogo"; form.id.value = ""; }
+  openModal("modal-game-form");
+}
+$("#form-game").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  fd.tamanho = Number(fd.tamanho);
+  const id = fd.id; delete fd.id;
+  try {
+    if (id) await db.ref("games/" + id).update(fd);
+    else await db.ref("games").push(fd);
+    toast("Salvo", "success"); closeModal("modal-game-form");
+  } catch (err) { toast(err.message, "error"); }
+});
+/* --- Categorias --- */
+$("#form-cat")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nome = new FormData(e.target).get("nome").trim(); if (!nome) return;
+  await db.ref("categories").push({ nome, ordem: state.categories.length });
+  e.target.reset();
+});
+function renderAdminCategories() {
+  const box = $("#admin-cats-list"); if (!box) return;
+  box.innerHTML = `
+    <table class="data">
+      <thead><tr><th>Nome</th><th>Ações</th></tr></thead>
+      <tbody>
+        ${state.categories.map(c => `
+          <tr>
+            <td><input value="${c.nome}" data-edc="${c.id}" style="background:transparent;border:none"></td>
+            <td class="actions-cell">
+              <button data-savc="${c.id}">💾</button>
+              <button class="del" data-delc="${c.id}">🗑️</button>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+    </table>`;
+  box.querySelectorAll("[data-savc]").forEach(b => b.onclick = async () => {
+    const inp = box.querySelector(`[data-edc="${b.dataset.savc}"]`);
+    await db.ref("categories/" + b.dataset.savc).update({ nome: inp.value });
+    toast("Categoria salva", "success");
+  });
+  box.querySelectorAll("[data-delc]").forEach(b => b.onclick = async () => {
+    if (!(await confirmDialog("Excluir categoria?"))) return;
+    await db.ref("categories/" + b.dataset.delc).remove();
+  });
+}
+/* --- Pendrives --- */
+function renderAdminPendrives() {
+  const box = $("#admin-pen-list"); if (!box) return;
+  box.innerHTML = state.pendrives.map(p => `
+    <div class="inline-form">
+      <input value="${p.label}" data-plabel="${p.id}" placeholder="Rótulo">
+      <input value="${p.real}" type="number" step="0.01" data-preal="${p.id}" placeholder="GB real">
+      <button class="btn btn-primary" data-savp="${p.id}">Salvar</button>
+      <button class="btn btn-danger" data-delp="${p.id}">Excluir</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-savp]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.savp;
+    const label = box.querySelector(`[data-plabel="${id}"]`).value;
+    const real = Number(box.querySelector(`[data-preal="${id}"]`).value);
+    await db.ref("pendrives/" + id).update({ label, real });
+    toast("Pendrive salvo", "success");
+  });
+  box.querySelectorAll("[data-delp]").forEach(b => b.onclick = async () => {
+    if (!(await confirmDialog("Excluir este pendrive?"))) return;
+    await db.ref("pendrives/" + b.dataset.delp).remove();
+  });
+}
+$("#form-pen")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  await db.ref("pendrives").push({ label: fd.label, real: Number(fd.real) });
+  e.target.reset();
+});
+/* --- Configurações --- */
+function loadSettingsIntoForm() {
+  const f = $("#form-settings"); if (!f) return;
+  const s = state.settings || {};
+  f.title.value = s.title || ""; f.displayName.value = s.displayName || "";
+  f.logo.value = s.logo || ""; f.favicon.value = s.favicon || "";
+  f.primary.value = s.primary || "#00e0ff"; f.secondary.value = s.secondary || "#a855f7";
+  f.bgImage.value = s.bgImage || ""; f.footer.value = s.footer || "";
+  f.whatsapp.value = s.whatsapp || DEFAULT_WHATSAPP; f.theme.value = s.theme || "dark";
+}
+$("#form-settings")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  await db.ref("settings").update(fd);
+  toast("Configurações salvas", "success");
+});
+/* ============ 10. INIT ============ */
+window.addEventListener("load", () => setTimeout(() => showLoader(false), 400));
