@@ -1,4 +1,4 @@
-/* =========================================================
+/* ========================================================= 
  * CATÁLOGO RETRO - script.js
  * Firebase Authentication + Realtime Database
  * Estrutura modular via IIFE / módulos internos
