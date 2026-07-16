@@ -1,22 +1,19 @@
 /* =========================================================
- * PS2 Retrô — Catálogo Gamer
- * Frontend puro + Firebase (Auth + Realtime Database)
- * ---------------------------------------------------------
- * ESTRUTURA:
- *  1.  CONFIGURAÇÃO FIREBASE       → substitua firebaseConfig
- *  2.  ESTADO GLOBAL
- *  3.  UTILITÁRIOS (toasts, modais, loader)
- *  4.  AUTENTICAÇÃO ADMIN
- *  5.  CARREGAMENTO DE DADOS (settings, games, cats, pendrives)
- *  6.  ÁREA PÚBLICA (grid, filtros, carrinho, checkout)
- *  7.  GERAÇÃO DE IMAGEM JPG (Canvas)
- *  8.  ENVIO WHATSAPP + SALVAR PEDIDO
- *  9.  PAINEL ADMIN (dashboard, pedidos, jogos, cats, pen, config)
- * 10.  INICIALIZAÇÃO
+ * CATÁLOGO RETRO - script.js
+ * Firebase Authentication + Realtime Database
+ * Estrutura modular via IIFE / módulos internos
  * ========================================================= */
-/* ============ 1. CONFIGURAÇÃO FIREBASE ============
- * >>> COLE AQUI as credenciais do seu projeto Firebase.
- * Console Firebase → ⚙️ Configurações → Suas apps → Config
+
+/* -------- CONFIGURAÇÃO FIREBASE --------
+ * Substitua os valores abaixo pelos do seu projeto Firebase.
+ * Console: https://console.firebase.google.com
+ * Passos:
+ *   1. Criar projeto Firebase.
+ *   2. Ativar Authentication -> Email/Senha.
+ *   3. Criar usuário admin@admin.com.
+ *   4. Ativar Realtime Database (modo bloqueado).
+ *   5. Colar as regras recomendadas (veja README).
+ *   6. Colar aqui as credenciais do "Web App".
  */
 const firebaseConfig = {
   apiKey: "AIzaSyBvdW06QiHlJA5glUKtucX6hL8LdvlTPME",
@@ -27,588 +24,1146 @@ const firebaseConfig = {
   messagingSenderId: "689656568290",
   appId: "1:689656568290:web:8f82257c9bb23f8b1481bb"
 };
+
+/* Constantes globais */
+const ADMIN_EMAIL = "admin@admin.com";
+const GAMES_PER_PAGE = 30;
+
+/* Inicialização Firebase */
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
-const ADMIN_EMAIL = "admin@admin.com";
-const DEFAULT_WHATSAPP = "5588988470190";
-/* ============ 2. ESTADO GLOBAL ============ */
+
+/* =========================================================
+ * ESTADO GLOBAL
+ * ========================================================= */
 const state = {
-  settings: {},
   games: [],
   categories: [],
+  subcategories: [],
   pendrives: [],
   orders: [],
-  cart: [],           // [{id, qty}]
-  selectedPen: null,  // pendrive object
-  filter: { q: "", cat: "", sort: "az" },
+  settings: {},
+  cart: [],
+  selectedPendriveId: null,
+  filters: { search: "", category: "", subcategory: "", sort: "alpha" },
+  currentPage: 1,
+  isAdmin: false,
 };
-/* ============ 3. UTILITÁRIOS ============ */
+
+/* =========================================================
+ * UTIL - Funções auxiliares
+ * ========================================================= */
+
+/** Seletor curto */
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-function toast(msg, type = "info") {
-  const c = $("#toast-container");
-  const t = document.createElement("div");
-  t.className = `toast ${type}`;
-  t.textContent = msg;
-  c.appendChild(t);
-  setTimeout(() => { t.style.opacity = "0"; t.style.transform = "translateX(20px)"; }, 2600);
-  setTimeout(() => t.remove(), 3000);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+/** Exibe toast */
+function toast(msg, type = "") {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove("show"), 2800);
 }
-function showLoader(show = true) { $("#global-loader").classList.toggle("hidden", !show); }
+
+/** Formata número (2 casas) */
+const fmt = (n) => Number(n || 0).toFixed(2);
+
+/** Gera ID único simples */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+/** Escapa HTML */
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** Data/hora atual formatada */
+function nowParts() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return {
+    date: `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    iso: d.toISOString(),
+  };
+}
+
+/** Abre/fecha modal */
 function openModal(id) { $("#" + id).classList.remove("hidden"); }
 function closeModal(id) { $("#" + id).classList.add("hidden"); }
-function confirmDialog(msg) {
-  return new Promise(resolve => {
-    $("#confirm-msg").textContent = msg;
-    openModal("modal-confirm");
-    const yes = $("#confirm-yes"), no = $("#confirm-no");
-    const cleanup = () => { yes.onclick = null; no.onclick = null; closeModal("modal-confirm"); };
-    yes.onclick = () => { cleanup(); resolve(true); };
-    no.onclick = () => { cleanup(); resolve(false); };
-  });
-}
-function fmtGB(n) { return (Number(n) || 0).toFixed(2) + " GB"; }
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-/* Ripple effect */
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".btn");
-  if (!btn) return;
-  const r = btn.getBoundingClientRect();
-  btn.style.setProperty("--x", (e.clientX - r.left) + "px");
-  btn.style.setProperty("--y", (e.clientY - r.top) + "px");
-});
-/* Fechar modais no backdrop */
-document.addEventListener("click", (e) => {
-  const cls = e.target.dataset.close;
-  if (cls) closeModal(cls);
-});
-/* ============ 4. AUTENTICAÇÃO ADMIN ============ */
-$("#btn-admin-login").addEventListener("click", () => openModal("modal-login"));
-$("#login-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const email = fd.get("email").trim();
-  const password = fd.get("password");
-  if (email !== ADMIN_EMAIL) { toast("Acesso não autorizado.", "error"); return; }
-  try {
-    showLoader(true);
-    await auth.signInWithEmailAndPassword(email, password);
-    closeModal("modal-login");
-  } catch (err) {
-    toast("Falha no login: " + err.message, "error");
-  } finally { showLoader(false); }
-});
-auth.onAuthStateChanged((user) => {
-  if (user && user.email === ADMIN_EMAIL) {
-    $("#public-area").classList.add("hidden");
-    $("#admin-area").classList.remove("hidden");
-    bootAdmin();
-  } else {
-    if (user) { auth.signOut(); toast("Acesso não autorizado.", "error"); }
-    $("#admin-area").classList.add("hidden");
-    $("#public-area").classList.remove("hidden");
+
+/* =========================================================
+ * FIREBASE DATA LAYER
+ * ========================================================= */
+
+/** Cria dados padrão caso não existam ainda no DB */
+async function ensureDefaults() {
+  const snap = await db.ref("pendrives").once("value");
+  if (!snap.exists()) {
+    const defaults = {
+      p32: { id: "p32", name: "32 GB", capacity: 29.20, order: 1 },
+      p64: { id: "p64", name: "64 GB", capacity: 58.90, order: 2 },
+      p128: { id: "p128", name: "128 GB", capacity: 116.40, order: 3 },
+    };
+    await db.ref("pendrives").set(defaults);
   }
-});
-$("#btn-logout").addEventListener("click", () => auth.signOut());
-/* ============ 5. CARREGAMENTO DE DADOS ============ */
-function listen(path, cb) { db.ref(path).on("value", s => cb(s.val() || null)); }
-function applySettings(s) {
-  state.settings = s || {};
-  const st = state.settings;
-  document.title = st.title || "PS2 Retrô";
-  $("#site-title").textContent = st.displayName || st.title || "PS2 Retrô";
-  if (st.logo) $("#site-logo").src = st.logo;
-  if (st.favicon) $("#favicon").href = st.favicon;
-  if (st.primary) document.documentElement.style.setProperty("--primary", st.primary);
-  if (st.secondary) document.documentElement.style.setProperty("--secondary", st.secondary);
-  if (st.bgImage) document.documentElement.style.setProperty("--bg-image", `url("${st.bgImage}")`);
-  document.body.classList.toggle("theme-light", st.theme === "light");
-  $("#footer-text").textContent = st.footer || "© PS2 Retrô";
-}
-listen("settings", applySettings);
-listen("games", (v) => { state.games = objToArr(v); renderGames(); renderAdminGames(); populateCategoryFilter(); refreshStats(); });
-listen("categories", (v) => { state.categories = objToArr(v); populateCategoryFilter(); renderAdminCategories(); populateGameFormCats(); refreshStats(); });
-listen("pendrives", (v) => {
-  state.pendrives = objToArr(v);
-  if (!state.pendrives.length) seedDefaultPendrives();
-  else { renderPendriveSelect(); renderAdminPendrives(); updateCapacityUI(); }
-});
-listen("orders", (v) => { state.orders = objToArr(v); renderOrders(); refreshStats(); });
-function objToArr(obj) { return obj ? Object.entries(obj).map(([id, v]) => ({ id, ...v })) : []; }
-async function seedDefaultPendrives() {
-  const defaults = [
-    { label: "32GB", real: 28.5 },
-    { label: "64GB", real: 59.4 },
-    { label: "128GB", real: 116.7 },
-  ];
-  for (const p of defaults) await db.ref("pendrives").push(p);
-}
-/* ============ 6. ÁREA PÚBLICA ============ */
-function renderPendriveSelect() {
-  const sel = $("#pendrive-select");
-  sel.innerHTML = "";
-  state.pendrives.forEach(p => {
-    const o = document.createElement("option");
-    o.value = p.id; o.textContent = `${p.label} (${p.real} GB)`;
-    sel.appendChild(o);
-  });
-  if (!state.selectedPen) state.selectedPen = state.pendrives[0];
-  sel.value = state.selectedPen?.id || "";
-  updateCapacityUI();
-}
-$("#pendrive-select").addEventListener("change", (e) => {
-  state.selectedPen = state.pendrives.find(p => p.id === e.target.value);
-  updateCapacityUI();
-});
-function populateCategoryFilter() {
-  const sel = $("#category-filter");
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Todas categorias</option>';
-  state.categories.forEach(c => {
-    const o = document.createElement("option");
-    o.value = c.nome; o.textContent = c.nome;
-    sel.appendChild(o);
-  });
-  sel.value = cur;
-}
-$("#search-input").addEventListener("input", (e) => { state.filter.q = e.target.value.toLowerCase(); renderGames(); });
-$("#category-filter").addEventListener("change", (e) => { state.filter.cat = e.target.value; renderGames(); });
-$("#sort-select").addEventListener("change", (e) => { state.filter.sort = e.target.value; renderGames(); });
-function renderGames() {
-  const grid = $("#games-grid");
-  let list = [...state.games];
-  const { q, cat, sort } = state.filter;
-  if (q) list = list.filter(g => (g.nome || "").toLowerCase().includes(q));
-  if (cat) list = list.filter(g => g.categoria === cat);
-  const cmp = {
-    az: (a, b) => a.nome.localeCompare(b.nome),
-    za: (a, b) => b.nome.localeCompare(a.nome),
-    "size-asc": (a, b) => a.tamanho - b.tamanho,
-    "size-desc": (a, b) => b.tamanho - a.tamanho,
-  };
-  list.sort(cmp[sort]);
-  $("#games-empty").classList.toggle("hidden", list.length > 0);
-  grid.innerHTML = list.map(g => `
-    <article class="game-card" data-id="${g.id}">
-      <div class="cover" style="background-image:url('${g.capa || ""}')">
-        <span class="size">${(g.tamanho || 0).toFixed(2)} GB</span>
-      </div>
-      <div class="info">
-        <h4 title="${g.nome}">${g.nome}</h4>
-        <span>${g.categoria || ""}</span>
-        <button class="add" data-add="${g.id}">+ Adicionar</button>
-      </div>
-    </article>
-  `).join("");
-  grid.querySelectorAll(".game-card").forEach(card => {
-    card.addEventListener("click", (e) => {
-      if (e.target.matches("[data-add]")) { addToCart(card.dataset.id); return; }
-      openGameDetail(card.dataset.id);
+
+  const sSnap = await db.ref("settings").once("value");
+  if (!sSnap.exists()) {
+    await db.ref("settings").set({
+      siteTitle: "Catálogo Retro",
+      siteName: "Catálogo Retro",
+      logoUrl: "",
+      faviconUrl: "",
+      primaryColor: "#00b3ff",
+      secondaryColor: "#8a2be2",
+      backgroundUrl: "",
+      footerText: "© Catálogo Retro - Todos os direitos reservados",
+      whatsappNumber: "5588988470190",
+      whatsappMessage: "Olá! Segue minha lista de jogos.",
+      jpgMessage: "Obrigado por escolher o Catálogo Retro!",
     });
+  }
+}
+
+/** Escuta em tempo real: aplica callback ao receber snapshot */
+function listenList(path, key) {
+  db.ref(path).on("value", (snap) => {
+    const val = snap.val() || {};
+    state[key] = Object.values(val);
+    onDataChange(key);
   });
 }
-function openGameDetail(id) {
-  const g = state.games.find(x => x.id === id); if (!g) return;
-  $("#mg-title").textContent = g.nome;
-  $("#mg-cover").src = g.capa || "";
-  $("#mg-cat").textContent = g.categoria || "-";
-  $("#mg-size").textContent = (g.tamanho || 0).toFixed(2);
-  $("#mg-compat").textContent = g.compatibilidade || "-";
-  $("#mg-desc").textContent = g.descricao || "";
-  $("#mg-add").onclick = () => { addToCart(id); closeModal("modal-game"); };
-  openModal("modal-game");
+
+/** Callback quando muda uma coleção */
+function onDataChange(key) {
+  if (key === "settings") applySettings();
+  if (key === "pendrives") { buildPendriveSelect(); updatePendriveBar(); }
+  if (["games", "categories", "subcategories"].includes(key)) {
+    buildFilterOptions();
+    renderCatalog();
+  }
+  if (state.isAdmin) renderCurrentAdminView();
 }
-/* --- Carrinho --- */
+
+/** Listener especial para settings (não é lista) */
+function listenSettings() {
+  db.ref("settings").on("value", (snap) => {
+    state.settings = snap.val() || {};
+    applySettings();
+    if (state.isAdmin) renderCurrentAdminView();
+  });
+}
+
+/** Listener orders */
+function listenOrders() {
+  db.ref("orders").on("value", (snap) => {
+    const val = snap.val() || {};
+    state.orders = Object.values(val);
+    if (state.isAdmin) renderCurrentAdminView();
+  });
+}
+
+/* =========================================================
+ * SETTINGS -> UI
+ * ========================================================= */
+
+/** Aplica configurações visuais dinâmicas */
+function applySettings() {
+  const s = state.settings || {};
+  if (s.siteTitle) {
+    document.title = s.siteTitle;
+    $("#siteTitle").textContent = s.siteTitle;
+  }
+  if (s.logoUrl) $("#siteLogo").src = s.logoUrl;
+  if (s.faviconUrl) $("#faviconLink").href = s.faviconUrl;
+  if (s.footerText) $("#footerText").textContent = s.footerText;
+  if (s.primaryColor) document.documentElement.style.setProperty("--primary", s.primaryColor);
+  if (s.secondaryColor) document.documentElement.style.setProperty("--secondary", s.secondaryColor);
+  if (s.backgroundUrl) {
+    document.body.style.backgroundImage =
+      `linear-gradient(rgba(5,6,13,.85), rgba(5,6,13,.85)), url("${s.backgroundUrl}")`;
+    document.body.style.backgroundSize = "cover";
+    document.body.style.backgroundAttachment = "fixed";
+  }
+}
+
+/* =========================================================
+ * CATÁLOGO PÚBLICO
+ * ========================================================= */
+
+/** Constrói select + botões de pendrives (botões usados no mobile) */
+function buildPendriveSelect() {
+  const sel = $("#pendriveSelect");
+  const btnWrap = $("#pendriveButtons");
+  const list = [...state.pendrives].sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // <select> (desktop)
+  sel.innerHTML = list.map((p) =>
+    `<option value="${p.id}">${esc(p.name)} — ${fmt(p.capacity)} GB</option>`
+  ).join("");
+
+  if (list.length && !state.selectedPendriveId) {
+    state.selectedPendriveId = list[0].id;
+  }
+  if (state.selectedPendriveId) sel.value = state.selectedPendriveId;
+
+  // Botões (mobile)
+  if (btnWrap) {
+    btnWrap.innerHTML = list.map((p) => `
+      <button type="button" data-pendrive-btn="${p.id}"
+        class="${p.id === state.selectedPendriveId ? "active" : ""}"
+        aria-pressed="${p.id === state.selectedPendriveId}">
+        ${esc(p.name)}
+      </button>
+    `).join("");
+    btnWrap.querySelectorAll("button[data-pendrive-btn]").forEach((b) => {
+      b.addEventListener("click", () => {
+        state.selectedPendriveId = b.dataset.pendriveBtn;
+        sel.value = state.selectedPendriveId;
+        // Atualiza estados visuais dos botões
+        btnWrap.querySelectorAll("button[data-pendrive-btn]").forEach((x) => {
+          const on = x.dataset.pendriveBtn === state.selectedPendriveId;
+          x.classList.toggle("active", on);
+          x.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+        updatePendriveBar();
+        renderCart();
+      });
+    });
+  }
+}
+
+/** Constrói filtros de categoria/subcategoria */
+function buildFilterOptions() {
+  const cats = [...state.categories].sort((a, b) => (a.order || 0) - (b.order || 0));
+  $("#categoryFilter").innerHTML =
+    `<option value="">Todas categorias</option>` +
+    cats.map((c) => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+
+  const subs = [...state.subcategories].sort((a, b) => (a.order || 0) - (b.order || 0));
+  $("#subcategoryFilter").innerHTML =
+    `<option value="">Todas subcategorias</option>` +
+    subs.map((s) => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join("");
+}
+
+/** Retorna lista de jogos após filtros/pesquisa/ordenação */
+function getFilteredGames() {
+  const { search, category, subcategory, sort } = state.filters;
+  let arr = state.games.slice();
+
+  if (category) arr = arr.filter((g) => g.category === category);
+  if (subcategory) arr = arr.filter((g) => g.subcategory === subcategory);
+  if (search) {
+    const q = search.toLowerCase();
+    arr = arr.filter((g) =>
+      (g.name || "").toLowerCase().includes(q) ||
+      (g.category || "").toLowerCase().includes(q) ||
+      (g.subcategory || "").toLowerCase().includes(q)
+    );
+  }
+  if (sort === "alpha") arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  if (sort === "light") arr.sort((a, b) => (a.size || 0) - (b.size || 0));
+  if (sort === "heavy") arr.sort((a, b) => (b.size || 0) - (a.size || 0));
+  return arr;
+}
+
+/** Renderiza catálogo */
+function renderCatalog() {
+  const wrap = $("#gamesGrid");
+  const all = getFilteredGames();
+  const total = all.length;
+  const pages = Math.max(1, Math.ceil(total / GAMES_PER_PAGE));
+  if (state.currentPage > pages) state.currentPage = 1;
+  const start = (state.currentPage - 1) * GAMES_PER_PAGE;
+  const items = all.slice(start, start + GAMES_PER_PAGE);
+
+  $("#emptyState").classList.toggle("hidden", total > 0);
+
+  wrap.innerHTML = items.map((g) => {
+    const inList = state.cart.some((c) => c.id === g.id);
+    return `
+      <div class="game-card ${inList ? "in-list" : ""}" data-id="${g.id}">
+        <div class="thumb"><img loading="lazy" src="${esc(g.image || "")}" alt="${esc(g.name)}" onerror="this.style.opacity=.15"/></div>
+        <div class="info">
+          <h3>${esc(g.name)}</h3>
+          <div class="meta">
+            <span>${esc(g.category || "")}</span>
+            <span>${fmt(g.size)} GB</span>
+          </div>
+        </div>
+        <button class="add" title="Adicionar" data-add="${g.id}"><i class="fa-solid fa-plus"></i></button>
+      </div>
+    `;
+  }).join("");
+
+  renderPagination(pages);
+}
+
+/** Paginação */
+function renderPagination(pages) {
+  const p = $("#pagination");
+  if (pages <= 1) { p.innerHTML = ""; return; }
+  const cur = state.currentPage;
+  const btn = (label, page, opts = {}) =>
+    `<button ${opts.disabled ? "disabled" : ""} ${opts.active ? 'class="active"' : ""} data-page="${page}">${label}</button>`;
+  let html = btn(`<i class="fa-solid fa-chevron-left"></i>`, cur - 1, { disabled: cur === 1 });
+  const range = [];
+  const push = (n) => range.push(n);
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || Math.abs(i - cur) <= 2) push(i);
+    else if (range[range.length - 1] !== "...") push("...");
+  }
+  range.forEach((n) => {
+    html += n === "..." ? `<button disabled>…</button>` : btn(n, n, { active: n === cur });
+  });
+  html += btn(`<i class="fa-solid fa-chevron-right"></i>`, cur + 1, { disabled: cur === pages });
+  p.innerHTML = html;
+}
+
+/* =========================================================
+ * DETALHE DO JOGO
+ * ========================================================= */
+function openGameDetail(id) {
+  const g = state.games.find((x) => x.id === id);
+  if (!g) return;
+  $("#gmImg").src = g.image || "";
+  $("#gmName").textContent = g.name;
+  $("#gmCat").textContent = g.category || "-";
+  $("#gmSub").textContent = g.subcategory || "-";
+  $("#gmDesc").textContent = g.description || "";
+  $("#gmComp").textContent = g.compatibility || "-";
+  $("#gmLang").textContent = g.language || "-";
+  $("#gmSize").textContent = fmt(g.size);
+  $("#gmCode").textContent = g.code || "-";
+  $("#gmAddBtn").onclick = () => { addToCart(id); closeModal("gameModal"); };
+  openModal("gameModal");
+}
+
+/* =========================================================
+ * CARRINHO / LISTA
+ * ========================================================= */
 function addToCart(id) {
-  const it = state.cart.find(c => c.id === id);
-  if (it) it.qty += 1; else state.cart.push({ id, qty: 1 });
-  toast("Adicionado à lista", "success");
+  if (state.cart.some((c) => c.id === id)) { toast("Já está na lista."); return; }
+  const g = state.games.find((x) => x.id === id);
+  if (!g) return;
+  state.cart.push(g);
+  toast(`${g.name} adicionado!`, "success");
+  updatePendriveBar();
+  renderCatalog();
   renderCart();
 }
-function removeFromCart(id) { state.cart = state.cart.filter(c => c.id !== id); renderCart(); }
-function changeQty(id, delta) {
-  const it = state.cart.find(c => c.id === id); if (!it) return;
-  it.qty = Math.max(1, it.qty + delta); renderCart();
+function removeFromCart(id) {
+  state.cart = state.cart.filter((c) => c.id !== id);
+  updatePendriveBar(); renderCatalog(); renderCart();
 }
-function totalUsedGB() {
-  return state.cart.reduce((sum, c) => {
-    const g = state.games.find(x => x.id === c.id);
-    return sum + (g ? g.tamanho * c.qty : 0);
-  }, 0);
+function currentPendrive() {
+  return state.pendrives.find((p) => p.id === state.selectedPendriveId) || state.pendrives[0];
 }
-$("#btn-open-cart").addEventListener("click", () => { renderCart(); openModal("modal-cart"); });
-function renderCart() {
-  $("#cart-count").textContent = state.cart.reduce((s, c) => s + c.qty, 0);
-  const box = $("#cart-items");
-  $("#cart-empty").classList.toggle("hidden", state.cart.length > 0);
-  box.innerHTML = state.cart.map(c => {
-    const g = state.games.find(x => x.id === c.id); if (!g) return "";
-    return `
-      <div class="cart-item">
-        <img src="${g.capa || ""}" alt="">
-        <div>
-          <div class="name">${g.nome}</div>
-          <div class="meta">${g.categoria} • ${(g.tamanho * c.qty).toFixed(2)} GB</div>
-        </div>
-        <div class="qty">
-          <button data-dec="${g.id}">−</button>
-          <span>${c.qty}</span>
-          <button data-inc="${g.id}">+</button>
-        </div>
-        <button class="remove" data-rem="${g.id}">✕</button>
-      </div>`;
-  }).join("");
-  box.querySelectorAll("[data-inc]").forEach(b => b.onclick = () => changeQty(b.dataset.inc, +1));
-  box.querySelectorAll("[data-dec]").forEach(b => b.onclick = () => changeQty(b.dataset.dec, -1));
-  box.querySelectorAll("[data-rem]").forEach(b => b.onclick = () => removeFromCart(b.dataset.rem));
-  updateCapacityUI();
+function cartTotalGB() {
+  return state.cart.reduce((s, g) => s + Number(g.size || 0), 0);
 }
-function updateCapacityUI() {
-  const pen = state.selectedPen;
-  const used = totalUsedGB();
-  const cap = pen ? Number(pen.real) : 0;
+
+/** Atualiza barra do pendrive */
+function updatePendriveBar() {
+  const p = currentPendrive();
+  const cap = p ? Number(p.capacity) : 0;
+  const used = cartTotalGB();
   const free = Math.max(0, cap - used);
-  const pct = cap ? Math.min(100, (used / cap) * 100) : 0;
-  $("#cap-pendrive").textContent = pen ? `${pen.label} (${cap} GB)` : "-";
-  $("#cap-used").textContent = fmtGB(used);
-  $("#cap-free").textContent = fmtGB(free);
-  const bar = $("#cap-bar");
+  const pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0;
+
+  $("#usedGB").textContent = fmt(used);
+  $("#freeGB").textContent = fmt(free);
+  $("#percentUsed").textContent = pct.toFixed(0) + "%";
+  $("#qtyGames").textContent = state.cart.length;
+
+  const bar = $("#pendriveBar");
   bar.style.width = pct + "%";
+  let color = "linear-gradient(90deg,#10b981,#22c55e)";
+  if (pct > 90) color = "linear-gradient(90deg,#ef4444,#dc2626)";
+  else if (pct > 75) color = "linear-gradient(90deg,#f97316,#fb923c)";
+  else if (pct > 55) color = "linear-gradient(90deg,#eab308,#fde047)";
+  bar.style.background = color;
+
+  $("#cartBadge").textContent = state.cart.length;
+}
+
+/** Renderiza carrinho no modal */
+function renderCart() {
+  const wrap = $("#cartItems");
+  const p = currentPendrive();
+  const cap = p ? Number(p.capacity) : 0;
+  const used = cartTotalGB();
   const over = used > cap;
-  bar.classList.toggle("over", over);
-  const msg = $("#cap-msg");
-  if (over) { msg.className = "cap-msg error"; msg.textContent = "A lista excedeu a capacidade do pendrive escolhido. Remova alguns jogos ou escolha um pendrive maior."; }
-  else if (used > 0) { msg.className = "cap-msg ok"; msg.textContent = `Ocupado ${pct.toFixed(1)}%`; }
-  else { msg.textContent = ""; }
-  $("#btn-finalize").disabled = over || state.cart.length === 0;
-  $("#btn-finalize").style.opacity = ($("#btn-finalize").disabled) ? .5 : 1;
+
+  wrap.innerHTML = state.cart.length ? state.cart.map((g) => `
+    <div class="cart-item">
+      <img src="${esc(g.image || "")}" alt=""/>
+      <div>
+        <div class="name">${esc(g.name)}</div>
+        <div class="size">${esc(g.category || "")}</div>
+      </div>
+      <div>${fmt(g.size)} GB</div>
+      <button class="rm" data-rm="${g.id}"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join("") : `<p style="text-align:center;color:var(--text-muted);padding:20px;">Sua lista está vazia.</p>`;
+
+  $("#cartQty").textContent = state.cart.length;
+  $("#cartUsed").textContent = fmt(used);
+  $("#cartCap").textContent = fmt(cap);
+
+  const warn = $("#cartWarn");
+  if (over) {
+    warn.textContent = "A lista ultrapassou a capacidade disponível. Remova alguns jogos ou selecione um pendrive maior.";
+    warn.classList.remove("hidden");
+  } else warn.classList.add("hidden");
+
+  validateCheckout();
 }
-/* --- Checkout --- */
-$("#checkout-form").addEventListener("submit", async (e) => {
+
+/** Habilita/desabilita finalizar */
+function validateCheckout() {
+  const form = $("#checkoutForm");
+  const fields = ["firstName", "lastName", "whatsapp", "city", "uf"];
+  const empty = fields.some((n) => !form.elements[n].value.trim());
+  const p = currentPendrive();
+  const cap = p ? Number(p.capacity) : 0;
+  const over = cartTotalGB() > cap;
+  const noItems = state.cart.length === 0;
+  $("#finishBtn").disabled = empty || over || noItems;
+}
+
+/* =========================================================
+ * CHECKOUT + JPG + WHATSAPP
+ * ========================================================= */
+async function handleCheckout(e) {
   e.preventDefault();
-  if (!state.cart.length) return toast("Sua lista está vazia", "warn");
-  if (!state.selectedPen) return toast("Escolha um pendrive", "warn");
-  const fd = Object.fromEntries(new FormData(e.target).entries());
-  fd.uf = (fd.uf || "").toUpperCase();
-  await finalizeOrder(fd);
-});
-async function finalizeOrder(customer) {
-  try {
-    showLoader(true);
-    const pen = state.selectedPen;
-    const items = state.cart.map(c => {
-      const g = state.games.find(x => x.id === c.id);
-      return { id: g.id, nome: g.nome, categoria: g.categoria, tamanho: g.tamanho, qty: c.qty };
-    });
-    const used = totalUsedGB();
-    const free = Math.max(0, pen.real - used);
-    const now = new Date();
-    const jpgBase64 = await generateListImage({ customer, pen, items, used, free, now });
-    const order = {
-      ...customer,
-      pendrive: pen.label,
-      pendriveReal: pen.real,
-      usado: used,
-      restante: free,
-      lista: items,
-      data: now.toLocaleDateString("pt-BR"),
-      hora: now.toLocaleTimeString("pt-BR"),
-      timestamp: now.getTime(),
-      status: "pendente",
-      imagem: jpgBase64,
-    };
-    const ref = await db.ref("orders").push(order);
-    toast("Lista salva! Abrindo WhatsApp...", "success");
-    openWhatsApp({ ...order, id: ref.key });
-    // limpar
-    state.cart = []; renderCart(); closeModal("modal-cart");
-    e && e.target && e.target.reset && e.target.reset();
-  } catch (err) {
-    console.error(err); toast("Erro ao finalizar: " + err.message, "error");
-  } finally { showLoader(false); }
-}
-/* ============ 7. GERAÇÃO DE IMAGEM JPG ============ */
-async function generateListImage({ customer, pen, items, used, free, now }) {
-  const W = 900;
-  const headerH = 240;
-  const rowH = 30;
-  const footerH = 90;
-  const H = headerH + items.length * rowH + footerH + 40;
-  const c = document.createElement("canvas");
-  c.width = W; c.height = H;
-  const ctx = c.getContext("2d");
-  // Fundo gradient
-  const grd = ctx.createLinearGradient(0, 0, W, H);
-  grd.addColorStop(0, "#0b0f1e"); grd.addColorStop(1, "#1a1040");
-  ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
-  // Header
-  ctx.fillStyle = "rgba(0,224,255,0.08)"; ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = "#00e0ff"; ctx.font = "bold 34px Orbitron, sans-serif";
-  ctx.fillText(state.settings.displayName || "PS2 Retrô", 30, 55);
-  ctx.fillStyle = "#a855f7"; ctx.font = "600 16px Rajdhani, sans-serif";
-  ctx.fillText("Catálogo Gamer — Lista de Jogos", 30, 80);
-  ctx.fillStyle = "#e8ecff"; ctx.font = "500 16px Rajdhani, sans-serif";
-  const linhas = [
-    `Data: ${now.toLocaleString("pt-BR")}`,
-    `Cliente: ${customer.nome} ${customer.sobrenome}`,
-    `Cidade/UF: ${customer.cidade} - ${customer.uf}`,
-    `WhatsApp: ${customer.whatsapp}`,
-    `Pendrive: ${pen.label} (${pen.real} GB)`,
-    `Usado: ${used.toFixed(2)} GB • Restante: ${free.toFixed(2)} GB`,
-  ];
-  linhas.forEach((t, i) => ctx.fillText(t, 30, 120 + i * 20));
-  // Tabela
-  let y = headerH + 20;
-  ctx.fillStyle = "#a855f7"; ctx.font = "bold 14px Rajdhani, sans-serif";
-  ctx.fillText("#", 30, y); ctx.fillText("Jogo", 70, y);
-  ctx.fillText("Categoria", 540, y); ctx.fillText("GB", 820, y);
-  y += 10; ctx.strokeStyle = "rgba(255,255,255,.15)"; ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W - 20, y); ctx.stroke();
-  y += 20;
-  ctx.font = "500 14px Rajdhani, sans-serif"; ctx.fillStyle = "#e8ecff";
-  items.forEach((g, i) => {
-    ctx.fillText(String(i + 1), 30, y);
-    ctx.fillText(truncate(ctx, g.nome + (g.qty > 1 ? ` x${g.qty}` : ""), 460), 70, y);
-    ctx.fillText(truncate(ctx, g.categoria || "-", 260), 540, y);
-    ctx.fillText((g.tamanho * g.qty).toFixed(2), 820, y);
-    y += rowH;
-  });
-  // Footer
-  y += 10; ctx.strokeStyle = "rgba(0,224,255,.4)"; ctx.beginPath(); ctx.moveTo(20, y); ctx.lineTo(W - 20, y); ctx.stroke();
-  y += 30;
-  ctx.fillStyle = "#00e0ff"; ctx.font = "bold 18px Orbitron, sans-serif";
-  ctx.fillText(`Total: ${items.reduce((s, g) => s + g.qty, 0)} jogos • ${used.toFixed(2)} GB`, 30, y);
-  return c.toDataURL("image/jpeg", 0.9);
-}
-function truncate(ctx, text, maxW) {
-  if (ctx.measureText(text).width <= maxW) return text;
-  while (text.length && ctx.measureText(text + "...").width > maxW) text = text.slice(0, -1);
-  return text + "...";
-}
-/* ============ 8. WHATSAPP ============ */
-function openWhatsApp(o) {
-  const wpp = (state.settings.whatsapp || DEFAULT_WHATSAPP).replace(/\D/g, "");
-  const txt =
-`*Nova Lista PS2 Retrô*
-Nome: ${o.nome} ${o.sobrenome}
-Cidade/UF: ${o.cidade} - ${o.uf}
-WhatsApp: ${o.whatsapp}
-Pendrive: ${o.pendrive}
-Qtd. jogos: ${o.lista.reduce((s, g) => s + g.qty, 0)}
-Espaço utilizado: ${o.usado.toFixed(2)} GB
-Espaço restante: ${o.restante.toFixed(2)} GB
-Lista enviada pelo site.`;
-  const url = `https://wa.me/${wpp}?text=${encodeURIComponent(txt)}`;
-  window.open(url, "_blank");
-}
-/* ============ 9. PAINEL ADMIN ============ */
-function bootAdmin() {
-  $$(".admin-link[data-tab]").forEach(a => a.onclick = () => switchTab(a.dataset.tab));
-  loadSettingsIntoForm();
-}
-function switchTab(tab) {
-  $$(".admin-link").forEach(a => a.classList.toggle("active", a.dataset.tab === tab));
-  $$(".admin-tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
-}
-function refreshStats() {
-  if (!$("#st-orders")) return;
-  $("#st-orders").textContent = state.orders.length;
-  $("#st-games").textContent = state.games.length;
-  $("#st-cats").textContent = state.categories.length;
-  $("#st-pend").textContent = state.orders.filter(o => o.status === "pendente").length;
-}
-/* --- Pedidos --- */
-$("#orders-search").addEventListener("input", renderOrders);
-$("#orders-sort").addEventListener("change", renderOrders);
-function renderOrders() {
-  const box = $("#orders-list"); if (!box) return;
-  const q = $("#orders-search")?.value.toLowerCase() || "";
-  const sort = $("#orders-sort")?.value || "recent";
-  let list = [...state.orders];
-  if (q) list = list.filter(o => `${o.nome} ${o.sobrenome} ${o.cidade} ${o.whatsapp}`.toLowerCase().includes(q));
-  const sorters = {
-    recent: (a, b) => (b.timestamp || 0) - (a.timestamp || 0),
-    old: (a, b) => (a.timestamp || 0) - (b.timestamp || 0),
-    city: (a, b) => (a.cidade || "").localeCompare(b.cidade || ""),
-    name: (a, b) => (a.nome || "").localeCompare(b.nome || ""),
-    status: (a, b) => (a.status || "").localeCompare(b.status || ""),
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.uf = data.uf.toUpperCase();
+
+  const p = currentPendrive();
+  const used = cartTotalGB();
+  const cap = Number(p.capacity);
+  const free = cap - used;
+  const t = nowParts();
+
+  const orderId = uid();
+  const order = {
+    id: orderId,
+    firstName: data.firstName, lastName: data.lastName,
+    whatsapp: data.whatsapp, city: data.city, uf: data.uf,
+    pendriveName: p.name, capacity: cap, used, free,
+    games: state.cart.map((g) => ({ id: g.id, name: g.name, size: g.size, category: g.category })),
+    quantity: state.cart.length,
+    status: "pendente",
+    date: t.date, time: t.time, createdAt: t.iso,
+    imageBase64: "",
   };
-  list.sort(sorters[sort]);
-  box.innerHTML = `
-    <table class="data">
-      <thead><tr><th>Data</th><th>Cliente</th><th>Cidade</th><th>Pendrive</th><th>Uso</th><th>Status</th><th>Ações</th></tr></thead>
-      <tbody>
-        ${list.map(o => `
-          <tr>
-            <td>${o.data || ""}<br><small>${o.hora || ""}</small></td>
-            <td>${o.nome} ${o.sobrenome}<br><small>${o.whatsapp}</small></td>
-            <td>${o.cidade}/${o.uf}</td>
-            <td>${o.pendrive}</td>
-            <td>${(o.usado || 0).toFixed(2)} GB</td>
-            <td><span class="status ${o.status === "finalizada" ? "done" : "pending"}">${o.status}</span></td>
-            <td class="actions-cell">
-              <button data-view="${o.id}">👁️</button>
-              <button data-dl="${o.id}">⬇️</button>
-              ${o.status !== "finalizada" ? `<button data-done="${o.id}">✔</button>` : ""}
-              <button class="del" data-delo="${o.id}">🗑️</button>
-            </td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-  box.querySelectorAll("[data-view]").forEach(b => b.onclick = () => viewOrderImg(b.dataset.view));
-  box.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => downloadOrderImg(b.dataset.dl));
-  box.querySelectorAll("[data-done]").forEach(b => b.onclick = () => setOrderStatus(b.dataset.done, "finalizada"));
-  box.querySelectorAll("[data-delo]").forEach(b => b.onclick = () => deleteOrder(b.dataset.delo));
-}
-function viewOrderImg(id) {
-  const o = state.orders.find(x => x.id === id); if (!o?.imagem) return toast("Sem imagem", "warn");
-  const w = window.open("");
-  w.document.write(`<title>Lista ${o.nome}</title><body style="margin:0;background:#000;text-align:center"><img src="${o.imagem}" style="max-width:100%">`);
-}
-function downloadOrderImg(id) {
-  const o = state.orders.find(x => x.id === id); if (!o?.imagem) return;
-  const a = document.createElement("a");
-  a.href = o.imagem; a.download = `lista-${o.nome}-${o.sobrenome}.jpg`; a.click();
-}
-async function setOrderStatus(id, status) {
-  await db.ref("orders/" + id).update({ status });
-  toast("Status atualizado", "success");
-}
-async function deleteOrder(id) {
-  if (!(await confirmDialog("Excluir pedido definitivamente?"))) return;
-  await db.ref("orders/" + id).remove();
-  toast("Pedido excluído", "success");
-}
-/* --- Jogos --- */
-$("#btn-new-game")?.addEventListener("click", () => openGameForm());
-function renderAdminGames() {
-  const box = $("#admin-games-list"); if (!box) return;
-  box.innerHTML = `
-    <table class="data">
-      <thead><tr><th>Capa</th><th>Nome</th><th>Categoria</th><th>GB</th><th>Ações</th></tr></thead>
-      <tbody>
-        ${state.games.map(g => `
-          <tr>
-            <td><img src="${g.capa || ""}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:#0b0f1e"></td>
-            <td>${g.nome}</td><td>${g.categoria || ""}</td><td>${(g.tamanho || 0).toFixed(2)}</td>
-            <td class="actions-cell">
-              <button data-edit="${g.id}">✏️</button>
-              <button class="del" data-delg="${g.id}">🗑️</button>
-            </td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-  box.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => openGameForm(b.dataset.edit));
-  box.querySelectorAll("[data-delg]").forEach(b => b.onclick = async () => {
-    if (!(await confirmDialog("Excluir este jogo?"))) return;
-    await db.ref("games/" + b.dataset.delg).remove();
-    toast("Excluído", "success");
-  });
-}
-function populateGameFormCats() {
-  const sel = $("#gf-cat"); if (!sel) return;
-  sel.innerHTML = state.categories.map(c => `<option>${c.nome}</option>`).join("");
-}
-function openGameForm(id) {
-  const form = $("#form-game"); form.reset();
-  populateGameFormCats();
-  if (id) {
-    const g = state.games.find(x => x.id === id); if (!g) return;
-    $("#gf-title").textContent = "Editar jogo";
-    form.id.value = g.id;
-    form.nome.value = g.nome || ""; form.categoria.value = g.categoria || "";
-    form.capa.value = g.capa || ""; form.tamanho.value = g.tamanho || 0;
-    form.compatibilidade.value = g.compatibilidade || ""; form.descricao.value = g.descricao || "";
-  } else { $("#gf-title").textContent = "Novo jogo"; form.id.value = ""; }
-  openModal("modal-game-form");
-}
-$("#form-game").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = Object.fromEntries(new FormData(e.target).entries());
-  fd.tamanho = Number(fd.tamanho);
-  const id = fd.id; delete fd.id;
+
+  // Gera JPG
+  const jpg = await buildOrderImage(order);
+  order.imageBase64 = jpg;
+
+  // Salva no Firebase
   try {
-    if (id) await db.ref("games/" + id).update(fd);
-    else await db.ref("games").push(fd);
-    toast("Salvo", "success"); closeModal("modal-game-form");
-  } catch (err) { toast(err.message, "error"); }
-});
-/* --- Categorias --- */
-$("#form-cat")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const nome = new FormData(e.target).get("nome").trim(); if (!nome) return;
-  await db.ref("categories").push({ nome, ordem: state.categories.length });
-  e.target.reset();
-});
-function renderAdminCategories() {
-  const box = $("#admin-cats-list"); if (!box) return;
-  box.innerHTML = `
-    <table class="data">
-      <thead><tr><th>Nome</th><th>Ações</th></tr></thead>
-      <tbody>
-        ${state.categories.map(c => `
-          <tr>
-            <td><input value="${c.nome}" data-edc="${c.id}" style="background:transparent;border:none"></td>
-            <td class="actions-cell">
-              <button data-savc="${c.id}">💾</button>
-              <button class="del" data-delc="${c.id}">🗑️</button>
-            </td>
-          </tr>`).join("")}
-      </tbody>
-    </table>`;
-  box.querySelectorAll("[data-savc]").forEach(b => b.onclick = async () => {
-    const inp = box.querySelector(`[data-edc="${b.dataset.savc}"]`);
-    await db.ref("categories/" + b.dataset.savc).update({ nome: inp.value });
-    toast("Categoria salva", "success");
+    await db.ref("orders/" + orderId).set(order);
+  } catch (err) {
+    console.error(err);
+    toast("Erro ao salvar pedido: " + err.message, "error");
+    return;
+  }
+
+  // Preview + download + WhatsApp
+  $("#jpgPreview").src = jpg;
+  $("#downloadJpg").href = jpg;
+  $("#sendWhats").href = buildWhatsappUrl(order);
+  closeModal("cartModal");
+  openModal("jpgModal");
+
+  // Limpa carrinho
+  state.cart = [];
+  updatePendriveBar();
+  renderCart();
+  renderCatalog();
+  toast("Pedido registrado!", "success");
+}
+
+/** Constrói URL do WhatsApp com os dados do pedido */
+function buildWhatsappUrl(order) {
+  const number = (state.settings.whatsappNumber || "5588988470190").replace(/\D/g, "");
+  const lines = [
+    `*Novo pedido - ${state.settings.siteTitle || "Catálogo Retro"}*`,
+    `Nome: ${order.firstName} ${order.lastName}`,
+    `Cidade: ${order.city}/${order.uf}`,
+    `WhatsApp: ${order.whatsapp}`,
+    `Pendrive: ${order.pendriveName}`,
+    `Jogos: ${order.quantity}`,
+    `Usado: ${fmt(order.used)} GB • Livre: ${fmt(order.free)} GB`,
+    `Data: ${order.date} ${order.time}`,
+    ``,
+    state.settings.whatsappMessage || "",
+    ``,
+    `O JPG do pedido foi gerado pelo sistema e está salvo para conferência pelo administrador.`,
+  ];
+  return `https://wa.me/${number}?text=` + encodeURIComponent(lines.join("\n"));
+}
+
+/* =========================================================
+ * GERAÇÃO DE IMAGEM (Canvas -> JPG Base64)
+ * ========================================================= */
+async function buildOrderImage(order) {
+  const W = 900;
+  const headerH = 260;
+  const rowH = 34;
+  const rows = order.games.length;
+  const H = headerH + rows * rowH + 120;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Fundo
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#05060d");
+  grad.addColorStop(0.5, "#0b0d1a");
+  grad.addColorStop(1, "#11132a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Barra topo
+  const bar = ctx.createLinearGradient(0, 0, W, 0);
+  bar.addColorStop(0, state.settings.primaryColor || "#00b3ff");
+  bar.addColorStop(1, state.settings.secondaryColor || "#8a2be2");
+  ctx.fillStyle = bar;
+  ctx.fillRect(0, 0, W, 6);
+
+  // Logo (se URL válida)
+  let logoDrawn = false;
+  if (state.settings.logoUrl) {
+    try {
+      const img = await loadImage(state.settings.logoUrl);
+      ctx.drawImage(img, 30, 30, 80, 80);
+      logoDrawn = true;
+    } catch (_) { /* ignora */ }
+  }
+  const infoX = logoDrawn ? 130 : 30;
+
+  // Título
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 30px Orbitron, Arial";
+  ctx.fillText(state.settings.siteTitle || "Catálogo Retro", infoX, 60);
+
+  ctx.fillStyle = "#a4a9c9";
+  ctx.font = "16px Rajdhani, Arial";
+  ctx.fillText(`Pedido gerado em ${order.date} às ${order.time}`, infoX, 88);
+
+  // Dados do cliente (2 colunas)
+  ctx.fillStyle = "#eef1ff";
+  ctx.font = "16px Rajdhani, Arial";
+  const info = [
+    [`Nome:`, `${order.firstName} ${order.lastName}`],
+    [`Cidade/UF:`, `${order.city}/${order.uf}`],
+    [`WhatsApp:`, `${order.whatsapp}`],
+    [`Pendrive:`, `${order.pendriveName}`],
+    [`Capacidade:`, `${fmt(order.capacity)} GB`],
+    [`Usado:`, `${fmt(order.used)} GB`],
+    [`Restante:`, `${fmt(order.free)} GB`],
+    [`Data/Hora:`, `${order.date} ${order.time}`],
+  ];
+  let y = 130;
+  info.forEach(([k, v], i) => {
+    const col = i % 2;
+    const line = Math.floor(i / 2);
+    const x = 30 + col * (W / 2);
+    ctx.fillStyle = "#a4a9c9";
+    ctx.fillText(k, x, y + line * 26);
+    ctx.fillStyle = "#eef1ff";
+    ctx.fillText(v, x + 110, y + line * 26);
   });
-  box.querySelectorAll("[data-delc]").forEach(b => b.onclick = async () => {
-    if (!(await confirmDialog("Excluir categoria?"))) return;
-    await db.ref("categories/" + b.dataset.delc).remove();
+
+  // Divisor
+  ctx.strokeStyle = "rgba(255,255,255,.15)";
+  ctx.beginPath(); ctx.moveTo(30, headerH - 20); ctx.lineTo(W - 30, headerH - 20); ctx.stroke();
+
+  // Lista jogos
+  ctx.fillStyle = "#00b3ff";
+  ctx.font = "bold 18px Orbitron, Arial";
+  ctx.fillText(`Jogos selecionados (${order.games.length})`, 30, headerH + 10);
+
+  ctx.font = "15px Rajdhani, Arial";
+  ctx.fillStyle = "#eef1ff";
+  order.games.forEach((g, i) => {
+    const yy = headerH + 40 + i * rowH;
+    if (i % 2 === 0) {
+      ctx.fillStyle = "rgba(255,255,255,.03)";
+      ctx.fillRect(20, yy - 20, W - 40, rowH);
+    }
+    ctx.fillStyle = "#a4a9c9";
+    ctx.fillText(String(i + 1).padStart(3, "0"), 30, yy);
+    ctx.fillStyle = "#eef1ff";
+    ctx.fillText(g.name.substring(0, 60), 80, yy);
+    ctx.fillStyle = "#7dd3fc";
+    ctx.textAlign = "right";
+    ctx.fillText(`${fmt(g.size)} GB`, W - 30, yy);
+    ctx.textAlign = "left";
+  });
+
+  // Rodapé
+  const footY = H - 60;
+  ctx.fillStyle = bar;
+  ctx.fillRect(0, footY, W, 4);
+  ctx.fillStyle = "#a4a9c9";
+  ctx.font = "14px Rajdhani, Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(state.settings.jpgMessage || "Obrigado pela preferência!", W / 2, footY + 30);
+  ctx.textAlign = "left";
+
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+/** Carrega imagem CORS-safe */
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
   });
 }
-/* --- Pendrives --- */
-function renderAdminPendrives() {
-  const box = $("#admin-pen-list"); if (!box) return;
-  box.innerHTML = state.pendrives.map(p => `
-    <div class="inline-form">
-      <input value="${p.label}" data-plabel="${p.id}" placeholder="Rótulo">
-      <input value="${p.real}" type="number" step="0.01" data-preal="${p.id}" placeholder="GB real">
-      <button class="btn btn-primary" data-savp="${p.id}">Salvar</button>
-      <button class="btn btn-danger" data-delp="${p.id}">Excluir</button>
-    </div>`).join("");
-  box.querySelectorAll("[data-savp]").forEach(b => b.onclick = async () => {
-    const id = b.dataset.savp;
-    const label = box.querySelector(`[data-plabel="${id}"]`).value;
-    const real = Number(box.querySelector(`[data-preal="${id}"]`).value);
-    await db.ref("pendrives/" + id).update({ label, real });
-    toast("Pendrive salvo", "success");
+
+/* =========================================================
+ * AUTENTICAÇÃO / ADMIN
+ * ========================================================= */
+function bindLogin() {
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    try {
+      await auth.signInWithEmailAndPassword(data.email, data.password);
+      closeModal("loginModal");
+    } catch (err) {
+      toast(err.message, "error");
+    }
   });
-  box.querySelectorAll("[data-delp]").forEach(b => b.onclick = async () => {
-    if (!(await confirmDialog("Excluir este pendrive?"))) return;
-    await db.ref("pendrives/" + b.dataset.delp).remove();
+
+  auth.onAuthStateChanged((user) => {
+    if (!user) { showPublic(); return; }
+    if (user.email !== ADMIN_EMAIL) {
+      toast("Acesso não autorizado.", "error");
+      auth.signOut();
+      return;
+    }
+    showAdmin();
   });
 }
-$("#form-pen")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = Object.fromEntries(new FormData(e.target).entries());
-  await db.ref("pendrives").push({ label: fd.label, real: Number(fd.real) });
-  e.target.reset();
-});
-/* --- Configurações --- */
-function loadSettingsIntoForm() {
-  const f = $("#form-settings"); if (!f) return;
+
+function showPublic() {
+  state.isAdmin = false;
+  $("#publicApp").classList.remove("hidden");
+  $("#adminApp").classList.add("hidden");
+}
+function showAdmin() {
+  state.isAdmin = true;
+  $("#adminApp").classList.remove("hidden");
+  $("#publicApp").classList.add("hidden");
+  listenOrders();
+  renderCurrentAdminView();
+}
+
+/* =========================================================
+ * ADMIN - Views
+ * ========================================================= */
+let currentAdminView = "dashboard";
+function renderCurrentAdminView() {
+  // Evita apagar o input enquanto o admin digita: se o foco estiver dentro do
+  // viewContainer em um campo de texto, re-renderiza depois que ele perder foco.
+  const active = document.activeElement;
+  const container = $("#viewContainer");
+  if (container && active && container.contains(active) &&
+      (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT")) {
+    if (!renderCurrentAdminView._pending) {
+      renderCurrentAdminView._pending = true;
+      active.addEventListener("blur", () => {
+        renderCurrentAdminView._pending = false;
+        renderCurrentAdminView();
+      }, { once: true });
+    }
+    return;
+  }
+  $("#viewTitle").textContent = ({
+    dashboard: "Dashboard", orders: "Pedidos", games: "Jogos",
+    categories: "Categorias", subcategories: "Subcategorias",
+    pendrives: "Pendrives", settings: "Configurações",
+  })[currentAdminView];
+  const c = container;
+  const fn = {
+    dashboard: viewDashboard, orders: viewOrders, games: viewGames,
+    categories: viewCategories, subcategories: viewSubcategories,
+    pendrives: viewPendrives, settings: viewSettings,
+  }[currentAdminView];
+  c.innerHTML = fn ? fn() : "";
+  wireAdminActions();
+}
+
+function viewDashboard() {
+  const totalGames = state.games.length;
+  const pending = state.orders.filter((o) => o.status === "pendente").length;
+  const finished = state.orders.filter((o) => o.status === "finalizado").length;
+  const totalGB = state.games.reduce((s, g) => s + Number(g.size || 0), 0);
+  return `
+    <div class="stats">
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-gamepad"></i> Jogos</div><div class="value">${totalGames}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-receipt"></i> Pedidos pendentes</div><div class="value">${pending}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-check"></i> Finalizados</div><div class="value">${finished}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-database"></i> Catálogo total</div><div class="value">${fmt(totalGB)} GB</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-tags"></i> Categorias</div><div class="value">${state.categories.length}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-hard-drive"></i> Pendrives</div><div class="value">${state.pendrives.length}</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>Últimos pedidos</h2></div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Data</th><th>Cliente</th><th>Cidade</th><th>Pendrive</th><th>Qtd</th><th>Status</th></tr></thead>
+          <tbody>
+            ${state.orders.slice(-6).reverse().map(o => `
+              <tr>
+                <td>${esc(o.date)} ${esc(o.time)}</td>
+                <td>${esc(o.firstName)} ${esc(o.lastName)}</td>
+                <td>${esc(o.city)}/${esc(o.uf)}</td>
+                <td>${esc(o.pendriveName)}</td>
+                <td>${o.quantity}</td>
+                <td><span class="status ${o.status}">${o.status}</span></td>
+              </tr>
+            `).join("") || `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Sem pedidos ainda</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function viewOrders() {
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Todos os pedidos</h2>
+        <input id="orderSearch" placeholder="Pesquisar pedidos..." style="max-width:260px;"/>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table" id="ordersTable">
+          <thead><tr><th>Data</th><th>Cliente</th><th>Cidade</th><th>Pendrive</th><th>Qtd</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${state.orders.slice().reverse().map(o => `
+              <tr data-order="${o.id}">
+                <td>${esc(o.date)} ${esc(o.time)}</td>
+                <td>${esc(o.firstName)} ${esc(o.lastName)}</td>
+                <td>${esc(o.city)}/${esc(o.uf)}</td>
+                <td>${esc(o.pendriveName)}</td>
+                <td>${o.quantity}</td>
+                <td><span class="status ${o.status}">${o.status}</span></td>
+                <td class="row-btns">
+                  <button class="icon-btn" data-view-jpg="${o.id}" title="Ver JPG"><i class="fa-solid fa-eye"></i></button>
+                  <button class="icon-btn" data-dl-jpg="${o.id}" title="Baixar JPG"><i class="fa-solid fa-download"></i></button>
+                  ${o.status === "pendente" ? `<button class="icon-btn" data-finish="${o.id}" title="Finalizar"><i class="fa-solid fa-check"></i></button>` : ""}
+                  <button class="icon-btn danger" data-del-order="${o.id}" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                </td>
+              </tr>
+            `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Sem pedidos ainda</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function viewGames() {
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Gerenciar jogos</h2>
+        <button class="btn btn-primary" data-add-game><i class="fa-solid fa-plus"></i> Novo jogo</button>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Subcategoria</th><th>GB</th><th>Código</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${state.games.map(g => `
+              <tr>
+                <td><img class="thumb-sm" src="${esc(g.image || "")}" alt=""/></td>
+                <td>${esc(g.name)}</td>
+                <td>${esc(g.category || "")}</td>
+                <td>${esc(g.subcategory || "")}</td>
+                <td>${fmt(g.size)}</td>
+                <td>${esc(g.code || "")}</td>
+                <td class="row-btns">
+                  <button class="icon-btn" data-edit-game="${g.id}"><i class="fa-solid fa-pen"></i></button>
+                  <button class="icon-btn danger" data-del-game="${g.id}"><i class="fa-solid fa-trash"></i></button>
+                </td>
+              </tr>
+            `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Nenhum jogo cadastrado</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function viewSimpleList(title, key, refPath) {
+  const items = [...state[key]].sort((a, b) => (a.order || 0) - (b.order || 0));
+  const inputId = `newSimpleName_${refPath}`;
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>${title}</h2>
+        <div style="display:flex;gap:8px;">
+          <input id="${inputId}" placeholder="Digite o nome e pressione Enter" data-simple-input="${refPath}" autocomplete="off"/>
+          <button class="btn btn-primary" data-add-simple="${refPath}"><i class="fa-solid fa-plus"></i> Adicionar</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Ordem</th><th>Nome</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${items.map(i => `
+              <tr>
+                <td><input type="number" data-order-simple="${refPath}|${i.id}" value="${i.order || 0}" style="width:70px;"/></td>
+                <td><input data-name-simple="${refPath}|${i.id}" value="${esc(i.name)}"/></td>
+                <td class="row-btns">
+                  <button class="icon-btn" data-save-simple="${refPath}|${i.id}" title="Salvar"><i class="fa-solid fa-check"></i></button>
+                  <button class="icon-btn danger" data-del-simple="${refPath}|${i.id}" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+                </td>
+              </tr>
+            `).join("") || `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">Vazio</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+function viewCategories() { return viewSimpleList("Categorias", "categories", "categories"); }
+function viewSubcategories() { return viewSimpleList("Subcategorias", "subcategories", "subcategories"); }
+
+function viewPendrives() {
+  const items = [...state.pendrives].sort((a, b) => (a.order || 0) - (b.order || 0));
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Pendrives</h2>
+        <button class="btn btn-primary" data-add-pen><i class="fa-solid fa-plus"></i> Novo</button>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Ordem</th><th>Nome</th><th>Capacidade real (GB)</th><th>Ações</th></tr></thead>
+          <tbody>
+            ${items.map(p => `
+              <tr>
+                <td><input type="number" data-pen-order="${p.id}" value="${p.order || 0}" style="width:70px;"/></td>
+                <td><input data-pen-name="${p.id}" value="${esc(p.name)}"/></td>
+                <td><input type="number" step="0.01" data-pen-cap="${p.id}" value="${p.capacity}"/></td>
+                <td class="row-btns">
+                  <button class="icon-btn" data-save-pen="${p.id}"><i class="fa-solid fa-check"></i></button>
+                  <button class="icon-btn danger" data-del-pen="${p.id}"><i class="fa-solid fa-trash"></i></button>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function viewSettings() {
   const s = state.settings || {};
-  f.title.value = s.title || ""; f.displayName.value = s.displayName || "";
-  f.logo.value = s.logo || ""; f.favicon.value = s.favicon || "";
-  f.primary.value = s.primary || "#00e0ff"; f.secondary.value = s.secondary || "#a855f7";
-  f.bgImage.value = s.bgImage || ""; f.footer.value = s.footer || "";
-  f.whatsapp.value = s.whatsapp || DEFAULT_WHATSAPP; f.theme.value = s.theme || "dark";
+  const field = (name, label, type = "text") =>
+    `<label style="display:flex;flex-direction:column;gap:6px;">
+      <span style="color:var(--text-muted);font-size:13px;">${label}</span>
+      <input type="${type}" data-setting="${name}" value="${esc(s[name] || "")}"/>
+    </label>`;
+  const area = (name, label) =>
+    `<label style="display:flex;flex-direction:column;gap:6px;">
+      <span style="color:var(--text-muted);font-size:13px;">${label}</span>
+      <textarea data-setting="${name}" rows="2" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;">${esc(s[name] || "")}</textarea>
+    </label>`;
+  return `
+    <div class="panel">
+      <div class="panel-head"><h2>Configurações do site</h2>
+        <button class="btn btn-primary" data-save-settings><i class="fa-solid fa-check"></i> Salvar</button>
+      </div>
+      <div class="grid-2">
+        ${field("siteTitle", "Título do site")}
+        ${field("siteName", "Nome do site")}
+        ${field("logoUrl", "Logo (URL do GitHub)")}
+        ${field("faviconUrl", "Favicon (URL)")}
+        ${field("primaryColor", "Cor principal (hex)")}
+        ${field("secondaryColor", "Cor secundária (hex)")}
+        ${field("backgroundUrl", "Imagem de fundo (URL)")}
+        ${field("whatsappNumber", "Número WhatsApp (ex 5588988470190)")}
+        ${area("whatsappMessage", "Mensagem WhatsApp")}
+        ${area("jpgMessage", "Mensagem do rodapé do JPG")}
+        ${area("footerText", "Texto do rodapé do site")}
+      </div>
+    </div>
+  `;
 }
-$("#form-settings")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const fd = Object.fromEntries(new FormData(e.target).entries());
-  await db.ref("settings").update(fd);
-  toast("Configurações salvas", "success");
-});
-/* ============ 10. INIT ============ */
-window.addEventListener("load", () => setTimeout(() => showLoader(false), 400));
+
+/* =========================================================
+ * ADMIN - Ações (delegated events)
+ * ========================================================= */
+function wireAdminActions() {
+  const c = $("#viewContainer");
+
+  // === ORDERS ===
+  c.querySelectorAll("[data-view-jpg]").forEach((b) => b.onclick = () => {
+    const o = state.orders.find(x => x.id === b.dataset.viewJpg);
+    if (!o) return;
+    $("#jpgPreview").src = o.imageBase64 || "";
+    $("#downloadJpg").href = o.imageBase64 || "#";
+    $("#sendWhats").href = buildWhatsappUrl(o);
+    openModal("jpgModal");
+  });
+  c.querySelectorAll("[data-dl-jpg]").forEach((b) => b.onclick = () => {
+    const o = state.orders.find(x => x.id === b.dataset.dlJpg);
+    if (!o) return;
+    const a = document.createElement("a");
+    a.href = o.imageBase64; a.download = `pedido-${o.id}.jpg`; a.click();
+  });
+  c.querySelectorAll("[data-finish]").forEach((b) => b.onclick = async () => {
+    await db.ref("orders/" + b.dataset.finish + "/status").set("finalizado");
+    toast("Pedido finalizado", "success");
+  });
+  c.querySelectorAll("[data-del-order]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Excluir este pedido permanentemente?")) return;
+    await db.ref("orders/" + b.dataset.delOrder).remove();
+    toast("Pedido excluído", "success");
+  });
+  const os = c.querySelector("#orderSearch");
+  if (os) os.oninput = () => {
+    const q = os.value.toLowerCase();
+    c.querySelectorAll("#ordersTable tbody tr").forEach((tr) => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
+    });
+  };
+
+  // === GAMES ===
+  const addG = c.querySelector("[data-add-game]");
+  if (addG) addG.onclick = () => openGameForm();
+  c.querySelectorAll("[data-edit-game]").forEach(b => b.onclick = () => openGameForm(b.dataset.editGame));
+  c.querySelectorAll("[data-del-game]").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir este jogo?")) return;
+    await db.ref("games/" + b.dataset.delGame).remove();
+    toast("Jogo excluído", "success");
+  });
+
+  // === SIMPLE LISTS (categories/subcategories) ===
+  const addS = c.querySelector("[data-add-simple]");
+  const addSimpleHandler = async () => {
+    const path = addS.dataset.addSimple;
+    const input = c.querySelector(`[data-simple-input="${path}"]`);
+    const name = (input?.value || "").trim();
+    if (!name) { toast("Digite um nome antes de adicionar", "error"); input?.focus(); return; }
+    try {
+      const id = uid();
+      const order = (Array.isArray(state[path]) ? state[path].length : 0) + 1;
+      await db.ref(`${path}/${id}`).set({ id, name, order });
+      if (input) input.value = "";
+      toast(`${path === "subcategories" ? "Subcategoria" : "Categoria"} adicionada`, "success");
+    } catch (err) {
+      console.error("Erro ao adicionar em", path, err);
+      toast("Erro ao salvar: " + (err?.message || err), "error");
+    }
+  };
+  if (addS) {
+    addS.onclick = addSimpleHandler;
+    const inp = c.querySelector(`[data-simple-input="${addS.dataset.addSimple}"]`);
+    if (inp) inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); addSimpleHandler(); }
+    });
+  }
+  c.querySelectorAll("[data-save-simple]").forEach(b => b.onclick = async () => {
+    const [path, id] = b.dataset.saveSimple.split("|");
+    const name = c.querySelector(`[data-name-simple="${path}|${id}"]`).value.trim();
+    const order = Number(c.querySelector(`[data-order-simple="${path}|${id}"]`).value) || 0;
+    if (!name) { toast("Nome não pode ficar vazio", "error"); return; }
+    try {
+      await db.ref(`${path}/${id}`).update({ name, order });
+      toast("Salvo", "success");
+    } catch (err) {
+      console.error(err);
+      toast("Erro ao salvar: " + (err?.message || err), "error");
+    }
+  });
+  c.querySelectorAll("[data-del-simple]").forEach(b => b.onclick = async () => {
+    const [path, id] = b.dataset.delSimple.split("|");
+    if (!confirm("Excluir?")) return;
+    try {
+      await db.ref(`${path}/${id}`).remove();
+      toast("Excluído", "success");
+    } catch (err) {
+      console.error(err);
+      toast("Erro ao excluir: " + (err?.message || err), "error");
+    }
+  });
+
+  // === PENDRIVES ===
+  const addP = c.querySelector("[data-add-pen]");
+  if (addP) addP.onclick = async () => {
+    const id = uid();
+    await db.ref("pendrives/" + id).set({ id, name: "Novo Pendrive", capacity: 0, order: state.pendrives.length + 1 });
+  };
+  c.querySelectorAll("[data-save-pen]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.savePen;
+    const name = c.querySelector(`[data-pen-name="${id}"]`).value.trim();
+    const capacity = Number(c.querySelector(`[data-pen-cap="${id}"]`).value) || 0;
+    const order = Number(c.querySelector(`[data-pen-order="${id}"]`).value) || 0;
+    await db.ref("pendrives/" + id).update({ name, capacity, order });
+    toast("Salvo", "success");
+  });
+  c.querySelectorAll("[data-del-pen]").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir pendrive?")) return;
+    await db.ref("pendrives/" + b.dataset.delPen).remove();
+  });
+
+  // === SETTINGS ===
+  const saveS = c.querySelector("[data-save-settings]");
+  if (saveS) saveS.onclick = async () => {
+    const payload = {};
+    c.querySelectorAll("[data-setting]").forEach(el => payload[el.dataset.setting] = el.value);
+    await db.ref("settings").update(payload);
+    toast("Configurações salvas", "success");
+  };
+}
+
+/** Form de jogo (novo/edit) via prompt-like modal simples usando cartModal reaproveitado */
+function openGameForm(editId) {
+  const g = editId ? state.games.find(x => x.id === editId) : {};
+  const html = `
+    <div class="modal" id="gameFormModal">
+      <div class="modal-content glass wide">
+        <button class="modal-close" data-close-gf><i class="fa-solid fa-xmark"></i></button>
+        <h2>${editId ? "Editar" : "Novo"} jogo</h2>
+        <form id="gameForm" class="checkout-form">
+          <div class="grid-2">
+            <input required name="name" placeholder="Nome" value="${esc(g.name || "")}"/>
+            <input required name="code" placeholder="Código único" value="${esc(g.code || "")}"/>
+            <select required name="category">${["", ...state.categories.map(c => c.name)].map(n => `<option ${g.category === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Categoria")}</option>`).join("")}</select>
+            <select name="subcategory">${["", ...state.subcategories.map(c => c.name)].map(n => `<option ${g.subcategory === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Subcategoria")}</option>`).join("")}</select>
+            <input name="compatibility" placeholder="Compatibilidade" value="${esc(g.compatibility || "")}"/>
+            <input name="language" placeholder="Idioma" value="${esc(g.language || "")}"/>
+            <input required type="number" step="0.01" name="size" placeholder="Tamanho GB" value="${g.size ?? ""}"/>
+            <input name="image" placeholder="URL da imagem (GitHub)" value="${esc(g.image || "")}"/>
+          </div>
+          <textarea name="description" rows="3" placeholder="Descrição" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;">${esc(g.description || "")}</textarea>
+          <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-check"></i> Salvar</button>
+        </form>
+      </div>
+    </div>`;
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  const modal = div.firstElementChild;
+  document.body.appendChild(modal);
+  modal.querySelector("[data-close-gf]").onclick = () => modal.remove();
+  modal.querySelector("#gameForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    data.size = Number(data.size) || 0;
+    const id = editId || uid();
+    const payload = {
+      id,
+      name: data.name, code: data.code,
+      category: data.category, subcategory: data.subcategory,
+      compatibility: data.compatibility, language: data.language,
+      size: data.size, image: data.image, description: data.description,
+      createdAt: g.createdAt || new Date().toISOString(),
+    };
+    await db.ref("games/" + id).set(payload);
+    modal.remove();
+    toast("Jogo salvo", "success");
+  };
+}
+
+/* =========================================================
+ * BINDINGS PÚBLICOS
+ * ========================================================= */
+function bindPublicUI() {
+  // Delegação: cards e botões
+  $("#gamesGrid").addEventListener("click", (e) => {
+    const add = e.target.closest("[data-add]");
+    if (add) { e.stopPropagation(); addToCart(add.dataset.add); return; }
+    const card = e.target.closest(".game-card");
+    if (card) openGameDetail(card.dataset.id);
+  });
+
+  $("#pagination").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-page]");
+    if (!b || b.disabled) return;
+    state.currentPage = Number(b.dataset.page);
+    renderCatalog();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  $("#searchInput").addEventListener("input", (e) => { state.filters.search = e.target.value; state.currentPage = 1; renderCatalog(); });
+  $("#categoryFilter").addEventListener("change", (e) => { state.filters.category = e.target.value; state.currentPage = 1; renderCatalog(); });
+  $("#subcategoryFilter").addEventListener("change", (e) => { state.filters.subcategory = e.target.value; state.currentPage = 1; renderCatalog(); });
+  $("#sortFilter").addEventListener("change", (e) => { state.filters.sort = e.target.value; renderCatalog(); });
+
+  $("#pendriveSelect").addEventListener("change", (e) => { state.selectedPendriveId = e.target.value; updatePendriveBar(); renderCart(); });
+
+  $("#openCartBtn").addEventListener("click", () => { renderCart(); openModal("cartModal"); });
+  $("#adminLoginBtn").addEventListener("click", () => openModal("loginModal"));
+
+  // Fechar modais
+  document.body.addEventListener("click", (e) => {
+    const close = e.target.closest("[data-close]");
+    if (close) closeModal(close.dataset.close);
+  });
+
+  // Carrinho: remover / validar / submit
+  $("#cartItems").addEventListener("click", (e) => {
+    const rm = e.target.closest("[data-rm]");
+    if (rm) removeFromCart(rm.dataset.rm);
+  });
+  $("#checkoutForm").addEventListener("input", validateCheckout);
+  $("#checkoutForm").addEventListener("submit", handleCheckout);
+
+  // Admin nav
+  document.body.addEventListener("click", (e) => {
+    const nav = e.target.closest(".nav-item[data-view]");
+    if (nav) {
+      currentAdminView = nav.dataset.view;
+      $$(".nav-item").forEach(n => n.classList.remove("active"));
+      nav.classList.add("active");
+      renderCurrentAdminView();
+      $(".admin-sidebar").classList.remove("open");
+    }
+  });
+  $("#logoutBtn").addEventListener("click", () => auth.signOut());
+  $("#mobileMenuBtn").addEventListener("click", () => $(".admin-sidebar").classList.toggle("open"));
+}
+
+/* =========================================================
+ * BOOTSTRAP
+ * ========================================================= */
+async function main() {
+  try {
+    await ensureDefaults();
+  } catch (err) {
+    console.warn("ensureDefaults falhou (regras podem impedir):", err);
+  }
+  listenSettings();
+  listenList("games", "games");
+  listenList("categories", "categories");
+  listenList("subcategories", "subcategories");
+  listenList("pendrives", "pendrives");
+  bindLogin();
+  bindPublicUI();
+  setTimeout(() => $("#appLoader").classList.add("hidden"), 400);
+}
+
+main();
