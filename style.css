@@ -1,4 +1,4 @@
-/* ========================================================= 
+/* =========================================================
    CATÁLOGO RETRO — Style
    Tema Gamer Premium (PlayStation-inspired)
    Glassmorphism • Neon azul/roxo • Preto
@@ -31,11 +31,16 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* HTML e BODY: garantem cor de fundo escura em qualquer altura de rolagem,
+   evitando "margens brancas" quando o conteúdo é maior que a viewport
+   (especialmente no painel admin em celulares). */
+html { background-color: var(--bg-1); }
 html, body {
   min-height: 100%;
   font-family: var(--font-body);
   color: var(--text);
-  background:
+  background-color: var(--bg-1);
+  background-image:
     radial-gradient(1200px 800px at 10% -10%, rgba(0, 179, 255, 0.18), transparent 60%),
     radial-gradient(1000px 800px at 100% 0%, rgba(138, 43, 226, 0.20), transparent 60%),
     radial-gradient(900px 700px at 50% 120%, rgba(255, 43, 214, 0.10), transparent 60%),
@@ -43,6 +48,7 @@ html, body {
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
+body { min-height: 100dvh; }
 
 img { max-width: 100%; display: block; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -241,21 +247,84 @@ input, select, textarea { font-family: inherit; }
 .game-card .info { padding: 10px 12px; }
 .game-card .info h3 { font-size: 15px; line-height: 1.2; margin-bottom: 4px; }
 .game-card .meta { color: var(--text-muted); font-size: 12px; display: flex; justify-content: space-between; }
-.game-card .add {
+
+/* Botão de ação flutuante no card (adicionar OU remover) */
+.game-card .card-action {
   position: absolute; top: 8px; right: 8px;
   width: 36px; height: 36px; border-radius: 50%;
   display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  color: #fff; box-shadow: var(--shadow-neon-blue);
+  color: #fff;
   opacity: 0; transform: translateY(-6px);
-  transition: opacity var(--transition), transform var(--transition);
+  transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+  z-index: 3;
 }
-.game-card:hover .add { opacity: 1; transform: translateY(0); }
+.game-card .card-action.add {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  box-shadow: var(--shadow-neon-blue);
+}
+.game-card .card-action.remove {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  box-shadow: 0 0 18px rgba(239,68,68,.55);
+}
+.game-card:hover .card-action { opacity: 1; transform: translateY(0); }
 .game-card.in-list { border-color: var(--accent); box-shadow: 0 0 20px rgba(255,43,214,.4); }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px);} to {opacity:1; transform:none;} }
 
-/* -------- Mobile: força 3 por linha -------- */
+/* -------- Barra de alternância Grade / Lista -------- */
+.view-toggle-bar {
+  margin: 0 16px;
+  display: flex; justify-content: flex-end;
+}
+.view-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  backdrop-filter: blur(10px);
+}
+.vt-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 9px;
+  color: var(--text-muted); font-weight: 600; font-size: 13px;
+  transition: background var(--transition), color var(--transition);
+}
+.vt-btn:hover { color: var(--text); }
+.vt-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff; box-shadow: var(--shadow-neon-blue);
+}
+
+/* -------- Modo Lista -------- */
+.games-grid.list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.games-grid.list .game-card {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+}
+.games-grid.list .game-card .thumb {
+  width: 72px; height: 72px; aspect-ratio: auto;
+  border-radius: 10px; overflow: hidden;
+}
+.games-grid.list .game-card .info { padding: 0; min-width: 0; }
+.games-grid.list .game-card .info h3 {
+  font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.games-grid.list .game-card .meta { gap: 12px; justify-content: flex-start; }
+.games-grid.list .game-card .card-action {
+  position: static; opacity: 1; transform: none;
+  align-self: center;
+}
+.games-grid.list .game-card:hover { transform: none; }
+
+/* -------- Mobile: força 3 por linha (grade) e ajustes -------- */
 @media (max-width: 720px) {
   .games-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .game-card .info h3 { font-size: 12px; }
@@ -267,6 +336,23 @@ input, select, textarea { font-family: inherit; }
   .pendrive-buttons { display: flex; }
   .header-inner { padding: 10px 14px; }
   .brand-title { font-size: .95rem; }
+
+  /* Botão de ação do card sempre visível no celular */
+  .game-card .card-action {
+    opacity: 1;
+    transform: none;
+    width: 30px; height: 30px;
+    top: 6px; right: 6px;
+    font-size: 13px;
+  }
+
+  /* Ajustes do modo Lista no mobile */
+  .games-grid.list { grid-template-columns: 1fr; }
+  .games-grid.list .game-card { grid-template-columns: 60px 1fr auto; gap: 10px; }
+  .games-grid.list .game-card .thumb { width: 60px; height: 60px; }
+  .games-grid.list .game-card .info h3 { font-size: 14px; }
+  .games-grid.list .game-card .meta { font-size: 12px; }
+  .games-grid.list .game-card .card-action { width: 38px; height: 38px; }
 }
 
 /* -------- Pagination -------- */
@@ -416,7 +502,9 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
+  min-height: 100dvh;
   gap: 12px; padding: 12px;
+  background-color: var(--bg-1); /* garante fundo escuro contínuo */
 }
 .admin-sidebar { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .admin-sidebar .brand.small h2 { font-family: var(--font-display); font-size: 1.1rem; }
@@ -502,14 +590,34 @@ table.admin-table {
 }
 @keyframes shine { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-/* Admin mobile */
+/* Admin mobile — corrige "margens brancas" e mantém fundo uniforme */
 @media (max-width: 860px) {
-  .admin-app { grid-template-columns: 1fr; }
+  html, body { background-attachment: scroll; } /* iOS ignora fixed → usa scroll */
+  .admin-app {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 8px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+  }
   .admin-sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; width: 260px; z-index: 200;
     transform: translateX(-110%); transition: transform .3s ease;
     border-radius: 0; margin: 0;
+    background: rgba(11, 13, 26, 0.96); /* opaco para não vazar conteúdo */
   }
   .admin-sidebar.open { transform: translateX(0); }
   #mobileMenuBtn { display: inline-grid; }
+
+  /* Evita "cinturas" brancas quando o conteúdo é maior que a viewport */
+  .admin-main { min-height: calc(100dvh - 16px); }
+  .admin-topbar { padding: 10px 14px; }
+  .view-container { padding: 4px 2px 32px; }
+}
+
+/* Barra do toggle em telas pequenas */
+@media (max-width: 720px) {
+  .view-toggle-bar { margin: 0 16px; justify-content: center; }
+  .vt-btn { padding: 8px 12px; font-size: 12px; }
 }
