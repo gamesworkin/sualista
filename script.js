@@ -46,7 +46,7 @@ const state = {
   settings: {},
   cart: [],
   selectedPendriveId: null,
-  filters: { search: "", category: "", code: "", subcategory: "", sort: "alpha" },
+  filters: { : "", category: "", code: "", subcategory: "", sort: "alpha" },
   currentPage: 1,
   viewMode: (typeof localStorage !== "undefined" && localStorage.getItem("catalogViewMode")) || "grid",
   isAdmin: false,
@@ -263,12 +263,12 @@ function getFilteredGames() {
     const q = search.toLowerCase();
     arr = arr.filter((g) =>
       (g.name || "").toLowerCase().includes(q) ||
+      (g.code || "").toLowerCase().includes(q) ||
       (g.category || "").toLowerCase().includes(q) ||
       (g.subcategory || "").toLowerCase().includes(q)
     );
   }
   if (sort === "alpha") arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  if (sort === "alpha") arr.sort((a, b) => (a.code || "").localeCompare(b.code || ""));
   if (sort === "light") arr.sort((a, b) => (a.size || 0) - (b.size || 0));
   if (sort === "heavy") arr.sort((a, b) => (b.size || 0) - (a.size || 0));
   return arr;
