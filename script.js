@@ -263,7 +263,6 @@ function getFilteredGames() {
     const q = search.toLowerCase();
     arr = arr.filter((g) =>
       (g.name || "").toLowerCase().includes(q) ||
-      (g.code || "").toLowerCase().includes(q) ||
       (g.category || "").toLowerCase().includes(q) ||
       (g.subcategory || "").toLowerCase().includes(q)
     );
