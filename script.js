@@ -46,7 +46,7 @@ const state = {
   settings: {},
   cart: [],
   selectedPendriveId: null,
-  filters: { : "", category: "", code: "", subcategory: "", sort: "alpha" },
+  filters: { search: "", category: "", code: "", subcategory: "", sort: "alpha" },
   currentPage: 1,
   viewMode: (typeof localStorage !== "undefined" && localStorage.getItem("catalogViewMode")) || "grid",
   isAdmin: false,
