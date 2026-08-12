@@ -1,14 +1,14 @@
 {
-  "name": "Workin'Store - Sistema Gerencial",
-  "short_name": "WorkinStore",
-  "start_url": "/admin/",
-  "scope": "/admin/",
+  "name": "Workin'Store | Sua Lista",
+  "short_name": "Catálogo Workin'Store",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0b0e14",
   "theme_color": "#0b0e14",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "fav.ico",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any maskable"
