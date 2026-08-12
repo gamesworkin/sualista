@@ -10,7 +10,7 @@
     {
       "src": "fav.ico",
       "sizes": "128x128",
-      "type": "image/png",
+      "type": "image/ico",
       "purpose": "any maskable"
     }
   ]
