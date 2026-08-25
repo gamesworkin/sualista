@@ -660,3 +660,305 @@ table.admin-table {
   .view-toggle-bar { margin: 0 16px; justify-content: center; }
   .vt-btn { padding: 8px 12px; font-size: 12px; }
 }
+
+
+/* =========================================================
+   ATUALIZAÇÕES DE LAYOUT — v2
+   • Botão de área restrita quase imperceptível
+   • Botão flutuante "Finalizar lista e enviar"
+   • Área administrativa em modal com abas horizontais
+   • Ajustes finos de responsividade
+   ========================================================= */
+
+/* -------- Botão de acesso restrito (discreto) -------- */
+.admin-access {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  opacity: .18;
+  transition: opacity .3s ease;
+}
+.admin-access:hover, .admin-access:focus-visible { opacity: .45; }
+.admin-access .admin-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-muted);
+  display: block;
+}
+
+/* -------- Botão flutuante: finalizar lista -------- */
+.float-finish {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-weight: 700; font-size: 15px; letter-spacing: .02em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  box-shadow: 0 10px 30px rgba(0,0,0,.45), var(--shadow-neon-blue);
+  animation: floatIn .3s ease both;
+  max-width: calc(100vw - 130px);
+}
+.float-finish:hover { transform: translateX(-50%) translateY(-2px); }
+.float-finish.hidden { display: none !important; }
+.float-finish .float-count {
+  background: rgba(0,0,0,.28);
+  padding: 2px 10px; border-radius: 999px;
+  font-size: 13px;
+}
+@keyframes floatIn { from { opacity: 0; transform: translateX(-50%) translateY(14px); } to { opacity: 1; } }
+
+/* Evita que o botão flutuante cubra o final do catálogo */
+body.has-float-finish .site-footer { margin-bottom: 96px; }
+
+/* Toast acima do botão flutuante */
+body.has-float-finish .toast { bottom: 96px; }
+
+/* -------- Área administrativa em modal -------- */
+.admin-modal { padding: 12px; align-items: stretch; }
+.admin-modal-content {
+  max-width: 1180px;
+  width: 100%;
+  max-height: calc(100dvh - 24px);
+  display: flex; flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.admin-modal-header {
+  position: relative;
+  padding: 14px 56px 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.03);
+  flex-shrink: 0;
+}
+.admin-modal-title {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  margin-bottom: 10px;
+}
+.admin-modal-title h2 {
+  font-family: var(--font-display);
+  font-size: 1.05rem; letter-spacing: .06em;
+  margin: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-modal-title .user-chip { margin-left: auto; flex-shrink: 0; }
+.admin-modal .modal-close { top: 12px; right: 12px; }
+
+/* Barra horizontal de menus */
+.admin-tabs {
+  display: flex; gap: 6px;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-tabs::-webkit-scrollbar { height: 5px; }
+.admin-tabs::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 999px; }
+.admin-tabs .nav-item {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.03);
+}
+.admin-tabs .nav-item.active {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff; border-color: transparent;
+  box-shadow: 0 0 14px rgba(0,179,255,.35);
+}
+.admin-tabs .nav-item.danger { color: #ffb4b4; margin-left: auto; }
+
+.admin-modal .view-container {
+  padding: 16px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  gap: 14px;
+}
+body.modal-open { overflow: hidden; }
+
+/* -------- Correções de layout gerais -------- */
+.warn-official { margin: 14px 16px; }
+.catalog-wrapper { padding-top: 14px; }
+.header-inner { gap: 12px; }
+.brand { min-width: 0; }
+.brand-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-actions { flex-shrink: 0; }
+.cart-items { max-height: min(46vh, 380px); }
+.modal-content { max-height: calc(100dvh - 32px); }
+.select-neon { max-width: 100%; }
+.pendrive-stats { row-gap: 6px; }
+.pagination { flex-wrap: wrap; }
+img { max-width: 100%; }
+.admin-table td input { max-width: 100%; }
+
+/* -------- Responsivo -------- */
+@media (max-width: 860px) {
+  .admin-modal { padding: 0; }
+  .admin-modal-content {
+    max-width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .admin-modal-header { padding: 12px 50px 0 12px; }
+  .admin-modal .view-container { padding: 12px 12px 28px; }
+  .panel { padding: 14px; }
+  .panel-head { flex-direction: column; align-items: stretch; }
+  .panel-head > div, .panel-head input, .panel-head .btn { width: 100%; }
+  .panel-head input { max-width: none !important; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-card { padding: 14px; }
+  .stat-card .value { font-size: 1.4rem; }
+  .admin-table { font-size: 13px; }
+  .admin-table th, .admin-table td { padding: 8px; white-space: nowrap; }
+}
+
+@media (max-width: 720px) {
+  .site-header { margin: 8px 10px 0; top: 8px; }
+  .pendrive-bar, .filters, .warn-official, .site-footer { margin-left: 10px; margin-right: 10px; }
+  .catalog-wrapper { padding-left: 10px; padding-right: 10px; }
+  .view-toggle-bar { margin: 0 10px; }
+  .filters { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .filter-item.search { grid-column: 1 / -1; }
+  .modal { padding: 10px; }
+  .modal-content { padding: 18px 14px; }
+  .cart-item { grid-template-columns: 40px 1fr auto; row-gap: 6px; }
+  .cart-item .rm { grid-column: 3; }
+  .float-finish {
+    left: 12px; right: 84px;
+    transform: none;
+    max-width: none;
+    justify-content: center;
+    padding: 13px 16px;
+    font-size: 14px;
+  }
+  .float-finish:hover { transform: translateY(-2px); }
+  @keyframes floatIn { from { opacity: 0; } to { opacity: 1; } }
+  .whatsapp-float { bottom: 22px; right: 16px; }
+  body.has-float-finish .toast { bottom: 92px; }
+  .admin-tabs .nav-item { padding: 8px 12px; font-size: 12px; }
+  .admin-tabs .nav-item.danger { margin-left: 0; }
+}
+
+@media (max-width: 420px) {
+  .games-grid { grid-template-columns: repeat(2, 1fr); }
+  .brand-title { font-size: .85rem; }
+  .stats { grid-template-columns: 1fr; }
+  .float-finish span:not(.float-count) { font-size: 13px; }
+}
+
+/* Esconde botões flutuantes enquanto o painel administrativo está aberto */
+body.modal-open .whatsapp-float,
+body.modal-open .float-finish { display: none !important; }
+
+/* =========================================================
+   PAGINAÇÃO DOS MENUS ADMINISTRATIVOS
+   (Jogos, Categorias, Subcategorias, Pendrives)
+   ========================================================= */
+.admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.admin-pagination .apg-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 14px;
+}
+.admin-pagination .apg-filter i { color: var(--primary); }
+
+.admin-pagination .apg-per-group {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(0, 0, 0, .25);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.admin-pagination .apg-per {
+  min-width: 42px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 13px;
+  transition: var(--transition);
+}
+.admin-pagination .apg-per:hover { color: var(--text); background: rgba(255, 255, 255, .07); }
+.admin-pagination .apg-per.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  box-shadow: var(--shadow-neon-blue);
+}
+
+.admin-pagination .apg-info { font-size: 12px; opacity: .8; }
+
+.admin-pagination .apg-pages { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-pagination .apg-num,
+.admin-pagination .apg-arrow {
+  min-width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .04);
+  color: var(--text);
+  font-weight: 700;
+  transition: var(--transition);
+}
+.admin-pagination .apg-num:hover:not(.active),
+.admin-pagination .apg-arrow:hover:not(:disabled) {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-neon-blue);
+}
+.admin-pagination .apg-num.active {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--shadow-neon-purple);
+}
+.admin-pagination .apg-arrow:disabled { opacity: .3; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .admin-pagination { justify-content: center; }
+  .admin-pagination .apg-filter { width: 100%; justify-content: center; flex-wrap: wrap; }
+  .admin-pagination .apg-pages { width: 100%; justify-content: center; }
+}
+
+/* =========================================================
+   SPINNER DE AUTENTICAÇÃO (login admin)
+   ========================================================= */
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  animation: spin .7s linear infinite;
+  vertical-align: -3px;
+  margin-right: 6px;
+}
+.btn.is-loading { opacity: .85; cursor: progress; }
+.form-loading input { pointer-events: none; opacity: .7; }

@@ -36,8 +36,8 @@
             <span>Minha Lista</span>
             <span id="cartBadge" class="badge">0</span>
           </button>
-          <button id="adminLoginBtn" class="btn btn-ghost" title="Área do administrador">
-            <i class="fa-solid fa-user-shield"></i>
+          <button id="adminLoginBtn" class="admin-access" title="." aria-label="Área restrita">
+            <span class="admin-dot"></span>
           </button>
         </div>
       </div>
@@ -200,32 +200,36 @@
   <!-- ============================================================
        PAINEL ADMINISTRATIVO
        ============================================================ -->
-  <div id="adminApp" class="hidden admin-app">
-    <aside class="admin-sidebar glass">
-      <div class="brand small">
-        <i class="fa-solid fa-gamepad neon-purple"></i>
-        <h2>Admin</h2>
-      </div>
-      <nav class="admin-nav">
-        <button class="nav-item active" data-view="dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</button>
-        <button class="nav-item" data-view="orders"><i class="fa-solid fa-receipt"></i> Pedidos</button>
-        <button class="nav-item" data-view="games"><i class="fa-solid fa-gamepad"></i> Jogos</button>
-        <button class="nav-item" data-view="categories"><i class="fa-solid fa-tags"></i> Categorias</button>
-        <button class="nav-item" data-view="subcategories"><i class="fa-solid fa-tag"></i> Subcategorias</button>
-        <button class="nav-item" data-view="pendrives"><i class="fa-solid fa-hard-drive"></i> Pendrives</button>
-        <button class="nav-item" data-view="settings"><i class="fa-solid fa-sliders"></i> Configurações</button>
-        <button id="logoutBtn" class="nav-item danger"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
-      </nav>
-    </aside>
-    <main class="admin-main">
-      <header class="admin-topbar glass">
-        <button id="mobileMenuBtn" class="btn btn-ghost"><i class="fa-solid fa-bars"></i></button>
-        <h1 id="viewTitle">Dashboard</h1>
-        <div class="user-chip"><i class="fa-solid fa-user"></i> admin</div>
+  <div id="adminModal" class="modal hidden admin-modal">
+    <div class="modal-content glass admin-modal-content">
+      <header class="admin-modal-header">
+        <div class="admin-modal-title">
+          <i class="fa-solid fa-gamepad neon-purple"></i>
+          <h2 id="viewTitle">Dashboard</h2>
+          <span class="user-chip"><i class="fa-solid fa-user"></i> admin</span>
+        </div>
+        <button class="modal-close" data-close="adminModal" aria-label="Fechar"><i class="fa-solid fa-xmark"></i></button>
+        <nav class="admin-tabs" aria-label="Menu administrativo">
+          <button class="nav-item active" data-view="dashboard"><i class="fa-solid fa-gauge-high"></i> <span>Dashboard</span></button>
+          <button class="nav-item" data-view="orders"><i class="fa-solid fa-receipt"></i> <span>Pedidos</span></button>
+          <button class="nav-item" data-view="games"><i class="fa-solid fa-gamepad"></i> <span>Jogos</span></button>
+          <button class="nav-item" data-view="categories"><i class="fa-solid fa-tags"></i> <span>Categorias</span></button>
+          <button class="nav-item" data-view="subcategories"><i class="fa-solid fa-tag"></i> <span>Subcategorias</span></button>
+          <button class="nav-item" data-view="pendrives"><i class="fa-solid fa-hard-drive"></i> <span>Pendrives</span></button>
+          <button class="nav-item" data-view="settings"><i class="fa-solid fa-sliders"></i> <span>Configurações</span></button>
+          <button id="logoutBtn" class="nav-item danger"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair</span></button>
+        </nav>
       </header>
       <section id="viewContainer" class="view-container"></section>
-    </main>
+    </div>
   </div>
+
+  <!-- Botão flutuante: finalizar lista -->
+  <button id="floatFinishBtn" class="float-finish hidden" type="button">
+    <i class="fa-solid fa-paper-plane"></i>
+    <span>Finalizar lista e enviar</span>
+    <span id="floatFinishCount" class="float-count">0</span>
+  </button>
 
 <a href="https://wa.me/5588988470190" target="_blank" class="whatsapp-float">
     		<img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
