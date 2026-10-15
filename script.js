@@ -50,7 +50,8 @@ const state = {
   currentPage: 1,
   viewMode: (typeof localStorage !== "undefined" && localStorage.getItem("catalogViewMode")) || "grid",
   isAdmin: false,
-  /* Paginação dos menus administrativos (jogos, categorias, subcategorias, pendrives) */
+  adminGameSearch: "",
+  /* Paginação dos menus administrativos (jogos, categorias, plataformas, pendrives) */
   adminPag: {
     games: { page: 1, per: 10 },
     categories: { page: 1, per: 10 },
@@ -91,6 +92,20 @@ function esc(s) {
   return String(s ?? "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** Ordenação consistente em português, sem alterar o catálogo original. */
+const gameNameCollator = new Intl.Collator("pt-BR", { sensitivity: "base", numeric: true });
+function sortedGames(games) {
+  return games.slice().sort((a, b) => gameNameCollator.compare(a.name || "", b.name || ""));
+}
+function normalizeSearch(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+}
+function getAdminGames() {
+  const q = normalizeSearch(state.adminGameSearch);
+  return sortedGames(state.games).filter(g => !q ||
+    [g.name, g.code, g.category, g.subcategory].some(value => normalizeSearch(value).includes(q)));
 }
 
 /** Data/hora atual formatada */
@@ -250,7 +265,7 @@ function buildPendriveSelect() {
   }
 }
 
-/** Constrói filtros de categoria/subcategoria */
+/** Constrói filtros de categoria/plataforma */
 function buildFilterOptions() {
   const cats = [...state.categories].sort((a, b) => (a.order || 0) - (b.order || 0));
   $("#categoryFilter").innerHTML =
@@ -259,7 +274,7 @@ function buildFilterOptions() {
 
   const subs = [...state.subcategories].sort((a, b) => (a.order || 0) - (b.order || 0));
   $("#subcategoryFilter").innerHTML =
-    `<option value="">Todas subcategorias</option>` +
+    `<option value="">Todas plataformas</option>` +
     subs.map((s) => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join("");
 }
 
@@ -279,7 +294,7 @@ function getFilteredGames() {
       (g.subcategory || "").toLowerCase().includes(q)
     );
   }
-  if (sort === "alpha") arr.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  if (sort === "alpha") arr = sortedGames(arr);
   if (sort === "light") arr.sort((a, b) => (a.size || 0) - (b.size || 0));
   if (sort === "heavy") arr.sort((a, b) => (b.size || 0) - (a.size || 0));
   return arr;
@@ -432,7 +447,7 @@ function renderCart() {
   const used = cartTotalGB();
   const over = used > cap;
 
-  wrap.innerHTML = state.cart.length ? state.cart.map((g) => `
+  wrap.innerHTML = state.cart.length ? sortedGames(state.cart).map((g) => `
     <div class="cart-item">
       <img src="${esc(g.image || "")}" alt=""/>
       <div>
@@ -490,7 +505,7 @@ async function handleCheckout(e) {
     firstName: data.firstName, lastName: data.lastName,
     whatsapp: data.whatsapp, city: data.city, uf: data.uf,
     pendriveName: p.name, capacity: cap, used, free,
-    games: state.cart.map((g) => ({ id: g.id, name: g.name, size: g.size, category: g.category })),
+    games: sortedGames(state.cart).map((g) => ({ id: g.id, name: g.name, size: g.size, category: g.category })),
     quantity: state.cart.length,
     status: "pendente",
     date: t.date, time: t.time, createdAt: t.iso,
@@ -552,7 +567,8 @@ async function buildOrderImage(order) {
   const W = 900;
   const headerH = 260;
   const rowH = 34;
-  const rows = order.games.length;
+  const games = sortedGames(order.games);
+  const rows = games.length;
   const H = headerH + rows * rowH + 120;
 
   const canvas = document.createElement("canvas");
@@ -588,7 +604,7 @@ async function buildOrderImage(order) {
   // Título
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 30px Orbitron, Arial";
-  ctx.fillText(state.settings.siteTitle || "Sua Lista | Workin'Store", infoX, 60);
+  ctx.fillText(state.settings.siteTitle || "Sua Lista | Workin'Store", infoX, 60, W - infoX - 30);
 
   ctx.fillStyle = "#a4a9c9";
   ctx.font = "16px Rajdhani, Arial";
@@ -615,7 +631,7 @@ async function buildOrderImage(order) {
     ctx.fillStyle = "#a4a9c9";
     ctx.fillText(k, x, y + line * 26);
     ctx.fillStyle = "#eef1ff";
-    ctx.fillText(v, x + 110, y + line * 26);
+    ctx.fillText(v, x + 110, y + line * 26, W / 2 - 150);
   });
 
   // Divisor
@@ -629,7 +645,7 @@ async function buildOrderImage(order) {
 
   ctx.font = "15px Rajdhani, Arial";
   ctx.fillStyle = "#eef1ff";
-  order.games.forEach((g, i) => {
+  games.forEach((g, i) => {
     const yy = headerH + 40 + i * rowH;
     if (i % 2 === 0) {
       ctx.fillStyle = "rgba(255,255,255,.03)";
@@ -638,7 +654,7 @@ async function buildOrderImage(order) {
     ctx.fillStyle = "#a4a9c9";
     ctx.fillText(String(i + 1).padStart(3, "0"), 30, yy);
     ctx.fillStyle = "#eef1ff";
-    ctx.fillText(g.name.substring(0, 60), 80, yy);
+    ctx.fillText(g.name || "", 80, yy, W - 230);
     ctx.fillStyle = "#7dd3fc";
     ctx.textAlign = "right";
     ctx.fillText(`${fmt(g.size)} GB`, W - 30, yy);
@@ -652,7 +668,7 @@ async function buildOrderImage(order) {
   ctx.fillStyle = "#a4a9c9";
   ctx.font = "14px Rajdhani, Arial";
   ctx.textAlign = "center";
-  ctx.fillText(state.settings.jpgMessage || "Obrigado pela preferência!", W / 2, footY + 30);
+  ctx.fillText(state.settings.jpgMessage || "Obrigado pela preferência!", W / 2, footY + 30, W - 60);
   ctx.textAlign = "left";
 
   return canvas.toDataURL("image/jpeg", 0.9);
@@ -845,7 +861,7 @@ function renderCurrentAdminView() {
   }
   $("#viewTitle").textContent = ({
     dashboard: "Dashboard", orders: "Pedidos", games: "Jogos",
-    categories: "Categorias", subcategories: "Subcategorias",
+    categories: "Categorias", subcategories: "Plataformas",
     pendrives: "Pendrives", settings: "Configurações",
   })[currentAdminView];
   const c = container;
@@ -930,18 +946,26 @@ function viewOrders() {
 }
 
 function viewGames() {
-  const all = state.games.slice();
-  const { items, controls } = adminPaginate("games", all);
   return `
     <div class="panel">
       <div class="panel-head">
         <h2>Gerenciar jogos</h2>
         <button class="btn btn-primary" data-add-game><i class="fa-solid fa-plus"></i> Novo jogo</button>
       </div>
+      <div class="filter-item search admin-game-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input id="adminGameSearch" type="search" aria-label="Buscar jogos" placeholder="Buscar por nome, código, categoria ou plataforma..." value="${esc(state.adminGameSearch)}" autocomplete="off" />
+      </div>
+      <div id="adminGamesResults">${buildAdminGamesResults()}</div>
+    </div>`;
+}
+function buildAdminGamesResults() {
+  const { items, controls } = adminPaginate("games", getAdminGames());
+  return `
       ${controls}
       <div class="table-wrap">
         <table class="admin-table">
-          <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Subcategoria</th><th>GB</th><th>Código</th><th>Ações</th></tr></thead>
+          <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Plataforma</th><th>GB</th><th>Código</th><th>Ações</th></tr></thead>
           <tbody>
             ${items.map(g => `
               <tr>
@@ -956,12 +980,11 @@ function viewGames() {
                   <button class="icon-btn danger" data-del-game="${g.id}"><i class="fa-solid fa-trash"></i></button>
                 </td>
               </tr>
-            `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Nenhum jogo cadastrado</td></tr>`}
+            `).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">${state.adminGameSearch ? "Nenhum jogo encontrado para esta busca" : "Nenhum jogo cadastrado"}</td></tr>`}
           </tbody>
         </table>
       </div>
       ${controls}
-    </div>
   `;
 }
 
@@ -973,7 +996,7 @@ function viewSimpleList(title, key, refPath) {
     <div class="panel">
       <div class="panel-head">
         <h2>${title}</h2>
-        <div style="display:flex;gap:8px;">
+        <div class="simple-add-controls">
           <input id="${inputId}" placeholder="Digite o nome e pressione Enter" data-simple-input="${refPath}" autocomplete="off"/>
           <button class="btn btn-primary" data-add-simple="${refPath}"><i class="fa-solid fa-plus"></i> Adicionar</button>
         </div>
@@ -1001,7 +1024,7 @@ function viewSimpleList(title, key, refPath) {
   `;
 }
 function viewCategories() { return viewSimpleList("Categorias", "categories", "categories"); }
-function viewSubcategories() { return viewSimpleList("Subcategorias", "subcategories", "subcategories"); }
+function viewSubcategories() { return viewSimpleList("Plataformas", "subcategories", "subcategories"); }
 
 function viewPendrives() {
   const all = [...state.pendrives].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -1112,6 +1135,14 @@ function wireAdminActions() {
   };
 
   // === GAMES ===
+  const gs = c.querySelector("#adminGameSearch");
+  if (gs) gs.oninput = () => {
+    state.adminGameSearch = gs.value;
+    adminPagState("games").page = 1;
+    const results = c.querySelector("#adminGamesResults");
+    if (results) results.innerHTML = buildAdminGamesResults();
+    wireAdminActions();
+  };
   const addG = c.querySelector("[data-add-game]");
   if (addG) addG.onclick = () => openGameForm();
   c.querySelectorAll("[data-edit-game]").forEach(b => b.onclick = () => openGameForm(b.dataset.editGame));
@@ -1133,7 +1164,7 @@ function wireAdminActions() {
       const order = (Array.isArray(state[path]) ? state[path].length : 0) + 1;
       await db.ref(`${path}/${id}`).set({ id, name, order });
       if (input) input.value = "";
-      toast(`${path === "subcategories" ? "Subcategoria" : "Categoria"} adicionada`, "success");
+      toast(`${path === "subcategories" ? "Plataforma" : "Categoria"} adicionada`, "success");
     } catch (err) {
       console.error("Erro ao adicionar em", path, err);
       toast("Erro ao salvar: " + (err?.message || err), "error");
@@ -1213,7 +1244,7 @@ function openGameForm(editId) {
             <input required name="name" placeholder="Nome" value="${esc(g.name || "")}"/>
             <input required name="code" placeholder="Código único" value="${esc(g.code || "")}"/>
             <select required name="category">${["", ...state.categories.map(c => c.name)].map(n => `<option ${g.category === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Categoria")}</option>`).join("")}</select>
-            <select name="subcategory">${["", ...state.subcategories.map(c => c.name)].map(n => `<option ${g.subcategory === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Subcategoria")}</option>`).join("")}</select>
+            <select name="subcategory">${["", ...state.subcategories.map(c => c.name)].map(n => `<option ${g.subcategory === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Plataforma")}</option>`).join("")}</select>
             <input name="compatibility" placeholder="Compatibilidade" value="${esc(g.compatibility || "")}"/>
             <input name="language" placeholder="Idioma" value="${esc(g.language || "")}"/>
             <input required type="number" step="0.01" name="size" placeholder="Tamanho GB" value="${g.size ?? ""}"/>

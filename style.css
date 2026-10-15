@@ -17,6 +17,9 @@
   --secondary: #8a2be2; /* neon roxo */
   --accent: #ff2bd6;
   --success: #22c55e;
+  --whatsapp: #15803d;
+  --whatsapp-hover: #166534;
+  --on-whatsapp: #ffffff;
   --warning: #eab308;
   --orange: #f97316;
   --danger: #ef4444;
@@ -114,6 +117,7 @@ input, select, textarea { font-family: inherit; }
 /* -------- Buttons -------- */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
+  color: var(--text); text-decoration: none;
   padding: 10px 16px; border-radius: 12px;
   font-weight: 600; letter-spacing: .04em;
   transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
@@ -132,6 +136,15 @@ input, select, textarea { font-family: inherit; }
   border-color: rgba(0,179,255,.5);
   box-shadow: inset 0 0 0 1px rgba(0,179,255,.2), 0 0 15px rgba(0,179,255,.25);
 }
+.btn-whatsapp {
+  background: var(--whatsapp);
+  color: var(--on-whatsapp);
+  border-color: var(--whatsapp);
+  text-decoration: none;
+  justify-content: center;
+}
+.btn-whatsapp:hover { background: var(--whatsapp-hover); border-color: var(--whatsapp-hover); }
+.btn-whatsapp:visited { color: var(--on-whatsapp); }
 .btn-ghost { background: transparent; }
 .btn-block { width: 100%; justify-content: center; }
 .btn.danger { color: #ffb4b4; }
@@ -188,7 +201,7 @@ input, select, textarea { font-family: inherit; }
 .pendrive-stats b { color: var(--text); }
 
 /* -------- Selects & inputs -------- */
-.select-neon, input[type=text], input[type=email], input[type=password], input:not([type]) {
+.select-neon, input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input:not([type]), textarea, .checkout-form select {
   background: rgba(255,255,255,.05);
   color: var(--text);
   border: 1px solid var(--border);
@@ -201,7 +214,7 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(0,179,255,.2);
 }
-.select-neon option { background: #0b0d1a; }
+.select-neon option, .checkout-form select option { background: var(--bg-2); }
 
 /* -------- Filters -------- */
 .filters {
@@ -418,10 +431,10 @@ input, select, textarea { font-family: inherit; }
 }
 .modal-close:hover { background: rgba(255,255,255,.12); }
 
-.modal h2 { font-family: var(--font-display); margin-bottom: 14px; letter-spacing: .05em; }
+.modal h2 { padding-right: 32px; overflow-wrap: anywhere; font-family: var(--font-display); margin-bottom: 14px; letter-spacing: .05em; }
 
 /* -------- Game detail -------- */
-.game-detail { display: grid; grid-template-columns: 220px 1fr; gap: 20px; }
+.game-detail { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 20px; }
 .game-detail img { border-radius: 12px; width: 100%; }
 .badges { display: flex; gap: 8px; margin: 8px 0 12px; flex-wrap: wrap;}
 .tag {
@@ -554,13 +567,13 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
 }
 .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
-.panel-head h2 { font-family: var(--font-display); font-size: 1rem; letter-spacing: .06em; }
+.panel-head h2 { margin-bottom: 0; padding-right: 0; font-family: var(--font-display); font-size: 1rem; letter-spacing: .06em; }
 
 .table-wrap { overflow-x: auto; }
 table.admin-table {
   width: 100%; border-collapse: collapse; font-size: 14px;
 }
-.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.admin-table th, .admin-table td { vertical-align: middle; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
 .admin-table th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
 .admin-table tr:hover td { background: rgba(255,255,255,.03); }
 .admin-table .thumb-sm { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
@@ -571,7 +584,8 @@ table.admin-table {
 .status.pendente { background: rgba(234,179,8,.2); color: #fde047; border: 1px solid rgba(234,179,8,.4); }
 .status.finalizado { background: rgba(34,197,94,.2); color: #86efac; border: 1px solid rgba(34,197,94,.4); }
 
-.row-btns { display: flex; gap: 6px; }
+td.row-btns { white-space: nowrap; vertical-align: middle; }
+.row-btns .icon-btn + .icon-btn { margin-left: 6px; }
 .icon-btn {
   width: 34px; height: 34px; border-radius: 8px;
   display: inline-grid; place-items: center;
@@ -602,7 +616,7 @@ table.admin-table {
     text-align: center;
     font-size: 30px;
     box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-    z-index: 1000;
+    z-index: 90;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -830,8 +844,11 @@ img { max-width: 100%; }
   .filter-item.search { grid-column: 1 / -1; }
   .modal { padding: 10px; }
   .modal-content { padding: 18px 14px; }
-  .cart-item { grid-template-columns: 40px 1fr auto; row-gap: 6px; }
-  .cart-item .rm { grid-column: 3; }
+  .admin-modal { padding: 0; }
+  .admin-modal-content { padding: 0; }
+  .cart-item { grid-template-columns: 40px minmax(0, 1fr) 64px 32px; gap: 6px; }
+  .cart-item .rm { width: 32px; padding: 6px; }
+  .cart-item img { width: 40px; height: 40px; }
   .float-finish {
     left: 12px; right: 84px;
     transform: none;
@@ -861,7 +878,7 @@ body.modal-open .float-finish { display: none !important; }
 
 /* =========================================================
    PAGINAÇÃO DOS MENUS ADMINISTRATIVOS
-   (Jogos, Categorias, Subcategorias, Pendrives)
+   (Jogos, Categorias, Plataformas, Pendrives)
    ========================================================= */
 .admin-pagination {
   display: flex;
@@ -962,3 +979,46 @@ body.modal-open .float-finish { display: none !important; }
 }
 .btn.is-loading { opacity: .85; cursor: progress; }
 .form-loading input { pointer-events: none; opacity: .7; }
+
+/* Alinhamento, busca e controles adaptáveis */
+.admin-game-search { margin-bottom: 14px; }
+.admin-game-search input { min-height: 44px; padding-right: 32px; }
+.order-preview { max-width: 100%; border-radius: var(--radius); }
+.simple-add-controls { display: flex; gap: 8px; min-width: 0; }
+.simple-add-controls input { min-width: 0; flex: 1; }
+.simple-add-controls .btn { flex-shrink: 0; }
+.filters > *, .grid-2 > *, .pendrive-bar > *, .cart-item > div, .game-detail-info { min-width: 0; }
+.grid-2 input, .grid-2 select, .grid-2 textarea { width: 100%; }
+.cart-item .name { overflow-wrap: anywhere; line-height: 1.3; }
+.cart-item > div:nth-child(3) { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.admin-table .thumb-sm { min-width: 40px; }
+.admin-table th:last-child, .admin-table td:last-child { text-align: right; }
+.game-card .info { min-height: 68px; }
+.game-card .meta { gap: 8px; flex-wrap: wrap; }
+.game-card .meta span:last-child { white-space: nowrap; }
+.game-detail img { aspect-ratio: 3 / 4; object-fit: contain; }
+.admin-modal .view-container { min-height: 0; min-width: 0; }
+.admin-modal-title h2 { padding-right: 0; }
+.btn { min-height: 42px; line-height: 1.3; text-align: center; }
+:where(button, a, input, select, textarea):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+body:has(.modal:not(.hidden)) { overflow: hidden; }
+body:has(.modal:not(.hidden)) .whatsapp-float,
+body:has(.modal:not(.hidden)) .float-finish { display: none; }
+@media (max-width: 860px) {
+  .simple-add-controls { flex-wrap: wrap; }
+  .simple-add-controls input { flex-basis: 100%; }
+}
+@media (max-width: 480px) {
+  .header-inner { flex-wrap: wrap; }
+  .brand { flex: 1 1 100%; }
+  .brand-title { white-space: normal; overflow-wrap: anywhere; letter-spacing: 0; }
+  .header-actions { margin-left: auto; }
+  .filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #sortFilter { grid-column: 1 / -1; }
+  .row-actions .btn { width: 100%; }
+  .game-detail img { max-height: 260px; }
+  .game-card .info { min-height: 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

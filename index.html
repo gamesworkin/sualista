@@ -67,10 +67,10 @@
     <section class="filters glass">
       <div class="filter-item search">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input id="searchInput" type="text" placeholder="Pesquisar por nome, código, categoria ou subcategoria..." />
+        <input id="searchInput" type="text" placeholder="Pesquisar por nome, código, categoria ou plataforma..." />
       </div>
       <select id="categoryFilter" class="select-neon"><option value="">Todas categorias</option></select>
-      <select id="subcategoryFilter" class="select-neon"><option value="">Todas subcategorias</option></select>
+      <select id="subcategoryFilter" class="select-neon"><option value="">Todas plataformas</option></select>
       <select id="sortFilter" class="select-neon">
         <option value="alpha">Ordem alfabética</option>
         <option value="light">Mais leves</option>
@@ -189,10 +189,10 @@
     <div class="modal-content glass wide">
       <button class="modal-close" data-close="jpgModal"><i class="fa-solid fa-xmark"></i></button>
       <h2>Pedido gerado</h2>
-      <img id="jpgPreview" alt="Pedido" style="max-width:100%;border-radius:12px;" />
+      <img id="jpgPreview" alt="Pedido" class="order-preview" />
       <div class="row-actions">
         <a id="downloadJpg" class="btn btn-primary" download="pedido.jpg"><i class="fa-solid fa-download"></i> Baixar JPG</a>
-        <a id="sendWhats" class="btn btn-neon" target="_blank"><i class="fa-brands fa-whatsapp"></i> Enviar no WhatsApp</a>
+        <a id="sendWhats" class="btn btn-whatsapp" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> Enviar no WhatsApp</a>
       </div>
     </div>
   </div>
@@ -214,7 +214,7 @@
           <button class="nav-item" data-view="orders"><i class="fa-solid fa-receipt"></i> <span>Pedidos</span></button>
           <button class="nav-item" data-view="games"><i class="fa-solid fa-gamepad"></i> <span>Jogos</span></button>
           <button class="nav-item" data-view="categories"><i class="fa-solid fa-tags"></i> <span>Categorias</span></button>
-          <button class="nav-item" data-view="subcategories"><i class="fa-solid fa-tag"></i> <span>Subcategorias</span></button>
+          <button class="nav-item" data-view="subcategories"><i class="fa-solid fa-tag"></i> <span>Plataformas</span></button>
           <button class="nav-item" data-view="pendrives"><i class="fa-solid fa-hard-drive"></i> <span>Pendrives</span></button>
           <button class="nav-item" data-view="settings"><i class="fa-solid fa-sliders"></i> <span>Configurações</span></button>
           <button id="logoutBtn" class="nav-item danger"><i class="fa-solid fa-right-from-bracket"></i> <span>Sair</span></button>
