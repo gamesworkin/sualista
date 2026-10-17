@@ -1022,3 +1022,8 @@ body:has(.modal:not(.hidden)) .float-finish { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Campo de tamanho com unidade (GB/MB) no cadastro de jogos */
+.size-input { display: flex; gap: 6px; }
+.size-input input { flex: 1; min-width: 0; }
+.size-input select { width: 80px; flex: 0 0 auto; }

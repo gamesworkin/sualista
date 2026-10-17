@@ -84,6 +84,14 @@ function toast(msg, type = "") {
 /** Formata número (2 casas) */
 const fmt = (n) => Number(n || 0).toFixed(2);
 
+/** Formata tamanho de jogo (armazenado em GB).
+ *  Valores menores que 1 GB são exibidos em MB (1 GB = 1024 MB). */
+function fmtSize(gb) {
+  const v = Number(gb || 0);
+  if (v > 0 && v < 1) return `${Math.round(v * 1024)} MB`;
+  return `${fmt(v)} GB`;
+}
+
 /** Gera ID único simples */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
@@ -328,7 +336,7 @@ function renderCatalog() {
           <h3>${esc(g.name)}</h3>
           <div class="meta">
             <span>${esc(g.category || "")}</span>
-            <span>${fmt(g.size)} GB</span>
+            <span>${fmtSize(g.size)}</span>
           </div>
         </div>
         ${actionBtn}
@@ -373,7 +381,7 @@ function openGameDetail(id) {
   $("#gmDesc").textContent = g.description || "";
   $("#gmComp").textContent = g.compatibility || "-";
   $("#gmLang").textContent = g.language || "-";
-  $("#gmSize").textContent = fmt(g.size);
+  $("#gmSize").textContent = fmtSize(g.size);
   $("#gmCode").textContent = g.code || "-";
   $("#gmAddBtn").onclick = () => { addToCart(id); closeModal("gameModal"); };
   openModal("gameModal");
@@ -454,7 +462,7 @@ function renderCart() {
         <div class="name">${esc(g.name)}</div>
         <div class="size">${esc(g.category || "")}</div>
       </div>
-      <div>${fmt(g.size)} GB</div>
+      <div>${fmtSize(g.size)}</div>
       <button class="rm" data-rm="${g.id}"><i class="fa-solid fa-trash"></i></button>
     </div>
   `).join("") : `<p style="text-align:center;color:var(--text-muted);padding:20px;">Sua lista está vazia.</p>`;
@@ -657,7 +665,7 @@ async function buildOrderImage(order) {
     ctx.fillText(g.name || "", 80, yy, W - 230);
     ctx.fillStyle = "#7dd3fc";
     ctx.textAlign = "right";
-    ctx.fillText(`${fmt(g.size)} GB`, W - 30, yy);
+    ctx.fillText(fmtSize(g.size), W - 30, yy);
     ctx.textAlign = "left";
   });
 
@@ -965,7 +973,7 @@ function buildAdminGamesResults() {
       ${controls}
       <div class="table-wrap">
         <table class="admin-table">
-          <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Plataforma</th><th>GB</th><th>Código</th><th>Ações</th></tr></thead>
+          <thead><tr><th></th><th>Nome</th><th>Categoria</th><th>Plataforma</th><th>Tamanho</th><th>Código</th><th>Ações</th></tr></thead>
           <tbody>
             ${items.map(g => `
               <tr>
@@ -973,7 +981,7 @@ function buildAdminGamesResults() {
                 <td>${esc(g.name)}</td>
                 <td>${esc(g.category || "")}</td>
                 <td>${esc(g.subcategory || "")}</td>
-                <td>${fmt(g.size)}</td>
+                <td>${fmtSize(g.size)}</td>
                 <td>${esc(g.code || "")}</td>
                 <td class="row-btns">
                   <button class="icon-btn" data-edit-game="${g.id}"><i class="fa-solid fa-pen"></i></button>
@@ -1247,7 +1255,13 @@ function openGameForm(editId) {
             <select name="subcategory">${["", ...state.subcategories.map(c => c.name)].map(n => `<option ${g.subcategory === n ? "selected" : ""} value="${esc(n)}">${esc(n || "Plataforma")}</option>`).join("")}</select>
             <input name="compatibility" placeholder="Compatibilidade" value="${esc(g.compatibility || "")}"/>
             <input name="language" placeholder="Idioma" value="${esc(g.language || "")}"/>
-            <input required type="number" step="0.01" name="size" placeholder="Tamanho GB" value="${g.size ?? ""}"/>
+            <div class="size-input">
+              <input required type="number" step="0.01" min="0" name="size" placeholder="Tamanho" value="${g.size == null ? "" : (Number(g.size) > 0 && Number(g.size) < 1 ? Math.round(Number(g.size) * 1024) : g.size)}"/>
+              <select name="sizeUnit" title="Unidade">
+                <option value="GB" ${!(Number(g.size) > 0 && Number(g.size) < 1) ? "selected" : ""}>GB</option>
+                <option value="MB" ${Number(g.size) > 0 && Number(g.size) < 1 ? "selected" : ""}>MB</option>
+              </select>
+            </div>
             <input name="image" placeholder="URL da imagem (GitHub)" value="${esc(g.image || "")}"/>
           </div>
           <textarea name="description" rows="3" placeholder="Descrição" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;">${esc(g.description || "")}</textarea>
@@ -1263,14 +1277,17 @@ function openGameForm(editId) {
   modal.querySelector("#gameForm").onsubmit = async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target).entries());
-    data.size = Number(data.size) || 0;
+    // Tamanho sempre salvo em GB; se informado em MB, converte (1 GB = 1024 MB)
+    let sizeVal = Number(data.size) || 0;
+    if (data.sizeUnit === "MB") sizeVal = sizeVal / 1024;
+    data.size = Number(sizeVal.toFixed(4));
     const id = editId || uid();
     const payload = {
       id,
       name: data.name, code: data.code,
       category: data.category, subcategory: data.subcategory,
       compatibility: data.compatibility, language: data.language,
-      size: data.size, image: data.image, description: data.description,
+      size: data.size, sizeMB: Math.round(data.size * 1024), image: data.image, description: data.description,
       createdAt: g.createdAt || new Date().toISOString(),
     };
     await db.ref("games/" + id).set(payload);
