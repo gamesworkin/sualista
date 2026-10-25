@@ -870,13 +870,13 @@ function renderCurrentAdminView() {
   $("#viewTitle").textContent = ({
     dashboard: "Dashboard", orders: "Pedidos", games: "Jogos",
     categories: "Categorias", subcategories: "Plataformas",
-    pendrives: "Pendrives", settings: "Configurações",
+    pendrives: "Pendrives", ranking: "Ranking", settings: "Configurações",
   })[currentAdminView];
   const c = container;
   const fn = {
     dashboard: viewDashboard, orders: viewOrders, games: viewGames,
     categories: viewCategories, subcategories: viewSubcategories,
-    pendrives: viewPendrives, settings: viewSettings,
+    pendrives: viewPendrives, ranking: viewRanking, settings: viewSettings,
   }[currentAdminView];
   c.innerHTML = fn ? fn() : "";
   wireAdminActions();
@@ -1067,6 +1067,195 @@ function viewPendrives() {
   `;
 }
 
+/* =========================================================
+ * ADMIN - RANKING DE JOGOS
+ * Conta quantas vezes cada jogo aparece nos pedidos.
+ * ========================================================= */
+const rankState = { period: "all", status: "all", category: "", platform: "", search: "", order: "desc", onlyZero: false };
+
+function computeRanking() {
+  const rs = rankState;
+  const now = Date.now();
+  const days = { "7": 7, "30": 30, "90": 90, "365": 365 }[rs.period];
+  const orders = state.orders.filter((o) => {
+    if (rs.status !== "all" && o.status !== rs.status) return false;
+    if (days) {
+      const t = Date.parse(o.createdAt || "");
+      if (!t || now - t > days * 86400000) return false;
+    }
+    return true;
+  });
+  const stats = {};
+  orders.forEach((o) => {
+    (o.games || []).forEach((g) => {
+      const k = g.id || g.name;
+      if (!stats[k]) stats[k] = { count: 0, last: "", clients: new Set() };
+      stats[k].count++;
+      if ((o.createdAt || "") > stats[k].last) stats[k].last = o.createdAt || "";
+      stats[k].clients.add(String(o.whatsapp || o.id));
+    });
+  });
+  const totalPicks = Object.values(stats).reduce((s, x) => s + x.count, 0);
+  let rows = state.games.map((g) => {
+    const st = stats[g.id] || stats[g.name] || { count: 0, last: "", clients: new Set() };
+    return { game: g, count: st.count, last: st.last, clients: st.clients.size,
+      share: totalPicks ? (st.count / totalPicks) * 100 : 0 };
+  });
+  // posição absoluta (antes dos filtros visuais)
+  rows.sort((a, b) => b.count - a.count || String(a.game.name).localeCompare(String(b.game.name)));
+  let pos = 0, prev = null;
+  rows.forEach((r, i) => { if (r.count !== prev) { pos = i + 1; prev = r.count; } r.pos = pos; });
+  const max = rows.length ? rows[0].count : 0;
+  const all = rows;
+  const q = normalizeSearch(rs.search);
+  rows = rows.filter((r) => {
+    if (rs.category && r.game.category !== rs.category) return false;
+    if (rs.platform && r.game.subcategory !== rs.platform) return false;
+    if (rs.onlyZero && r.count > 0) return false;
+    if (q && !normalizeSearch([r.game.name, r.game.code, r.game.category, r.game.subcategory].join(" ")).includes(q)) return false;
+    return true;
+  });
+  if (rs.order === "asc") rows.reverse();
+  return { rows, all, max, totalPicks, ordersCount: orders.length };
+}
+
+function fmtRankDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? "—" : d.toLocaleDateString("pt-BR");
+}
+
+function viewRanking() {
+  const rs = rankState;
+  const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`;
+  const cats = [...new Set(state.games.map((g) => g.category).filter(Boolean))].sort();
+  const plats = [...new Set(state.games.map((g) => g.subcategory).filter(Boolean))].sort();
+  return `
+    <div class="panel">
+      <div class="panel-head">
+        <h2><i class="fa-solid fa-ranking-star"></i> Ranking de jogos</h2>
+        <div class="row-btns">
+          <button class="btn" data-rank-csv><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+          <button class="btn" data-rank-print><i class="fa-solid fa-print"></i> Imprimir</button>
+        </div>
+      </div>
+      <div class="rank-filters">
+        <div class="filter-item search admin-game-search">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="rankSearch" type="search" placeholder="Buscar jogo..." value="${esc(rs.search)}" autocomplete="off" />
+        </div>
+        <select data-rank="period" aria-label="Período">
+          ${opt("all", "Todo o período", rs.period)}${opt("7", "Últimos 7 dias", rs.period)}${opt("30", "Últimos 30 dias", rs.period)}${opt("90", "Últimos 90 dias", rs.period)}${opt("365", "Último ano", rs.period)}
+        </select>
+        <select data-rank="status" aria-label="Status do pedido">
+          ${opt("all", "Todos os pedidos", rs.status)}${opt("pendente", "Só pendentes", rs.status)}${opt("finalizado", "Só finalizados", rs.status)}
+        </select>
+        <select data-rank="category" aria-label="Categoria">
+          ${opt("", "Todas as categorias", rs.category)}${cats.map((c) => opt(c, c, rs.category)).join("")}
+        </select>
+        <select data-rank="platform" aria-label="Plataforma">
+          ${opt("", "Todas as plataformas", rs.platform)}${plats.map((c) => opt(c, c, rs.platform)).join("")}
+        </select>
+        <select data-rank="order" aria-label="Ordem">
+          ${opt("desc", "Mais escolhidos primeiro", rs.order)}${opt("asc", "Menos escolhidos primeiro", rs.order)}
+        </select>
+        <label class="rank-check"><input type="checkbox" data-rank-zero ${rs.onlyZero ? "checked" : ""}/> Só nunca escolhidos</label>
+      </div>
+      <div id="rankResults">${buildRankingResults()}</div>
+    </div>`;
+}
+
+function buildRankingResults() {
+  const { rows, all, max, totalPicks, ordersCount } = computeRanking();
+  const zero = all.filter((r) => r.count === 0).length;
+  const top = all[0] && all[0].count > 0 ? all[0] : null;
+  const top10 = all.slice(0, 10).reduce((s, r) => s + r.count, 0);
+  const catMap = {};
+  all.forEach((r) => { const c = r.game.category || "Sem categoria"; catMap[c] = (catMap[c] || 0) + r.count; });
+  const catTop = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const catMax = catTop.length ? catTop[0][1] || 1 : 1;
+  const { items, controls } = adminPaginate("ranking", rows);
+  const medal = (p) => p === 1 ? "🥇" : p === 2 ? "🥈" : p === 3 ? "🥉" : p;
+  return `
+    <div class="stats">
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-receipt"></i> Pedidos analisados</div><div class="value">${ordersCount}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-hand-pointer"></i> Escolhas totais</div><div class="value">${totalPicks}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-crown"></i> Mais escolhido</div><div class="value rank-top-name">${top ? esc(top.game.name) + ` <small>(${top.count})</small>` : "—"}</div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-ghost"></i> Nunca escolhidos</div><div class="value">${zero} <small>/ ${all.length}</small></div></div>
+      <div class="stat-card"><div class="label"><i class="fa-solid fa-chart-pie"></i> Peso do Top 10</div><div class="value">${totalPicks ? Math.round((top10 / totalPicks) * 100) : 0}%</div></div>
+    </div>
+    ${catTop.length && totalPicks ? `
+    <div class="rank-cats">
+      <h3>Categorias mais procuradas</h3>
+      ${catTop.map(([c, n]) => `<div class="rank-cat"><span>${esc(c)}</span><div class="rank-bar"><i style="width:${(n / catMax) * 100}%"></i></div><b>${n}</b></div>`).join("")}
+    </div>` : ""}
+    ${controls}
+    <div class="table-wrap">
+      <table class="admin-table rank-table">
+        <thead><tr><th>#</th><th></th><th>Jogo</th><th>Categoria</th><th>Plataforma</th><th>Escolhas</th><th>Popularidade</th><th>Clientes</th><th>Última escolha</th><th>Ações</th></tr></thead>
+        <tbody>
+          ${items.map((r) => `
+            <tr class="${r.count === 0 ? "rank-zero" : ""}">
+              <td class="rank-pos">${r.count ? medal(r.pos) : "—"}</td>
+              <td><img class="thumb-sm" src="${esc(r.game.image || "")}" alt=""/></td>
+              <td>${esc(r.game.name)}<br><small class="muted">${fmtSize(r.game.size)}${r.game.code ? " · " + esc(r.game.code) : ""}</small></td>
+              <td>${esc(r.game.category || "")}</td>
+              <td>${esc(r.game.subcategory || "")}</td>
+              <td><b>${r.count}</b></td>
+              <td><div class="rank-bar"><i style="width:${max ? (r.count / max) * 100 : 0}%"></i></div><small>${r.share.toFixed(1)}%</small></td>
+              <td>${r.clients}</td>
+              <td>${fmtRankDate(r.last)}</td>
+              <td class="row-btns">
+                <button class="icon-btn" data-edit-game="${r.game.id}" title="Editar"><i class="fa-solid fa-pen"></i></button>
+                <button class="icon-btn danger" data-del-game="${r.game.id}" title="Excluir"><i class="fa-solid fa-trash"></i></button>
+              </td>
+            </tr>`).join("") || `<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:20px;">Nenhum jogo encontrado</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+    ${controls}`;
+}
+
+function refreshRankResults() {
+  const box = $("#rankResults");
+  if (box) { box.innerHTML = buildRankingResults(); wireAdminActions(); }
+}
+
+function exportRankingCSV() {
+  const { rows } = computeRanking();
+  const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["Posição", "Jogo", "Código", "Categoria", "Plataforma", "Tamanho (GB)", "Escolhas", "Participação %", "Clientes", "Última escolha"].map(q).join(";")];
+  rows.forEach((r) => lines.push([r.count ? r.pos : "-", r.game.name, r.game.code, r.game.category, r.game.subcategory,
+    r.game.size, r.count, r.share.toFixed(1).replace(".", ","), r.clients, fmtRankDate(r.last)].map(q).join(";")));
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `ranking-jogos-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast("Ranking exportado", "success");
+}
+
+function wireRankingActions(c) {
+  const s = c.querySelector("#rankSearch");
+  if (s) s.oninput = () => { rankState.search = s.value; adminPagState("ranking").page = 1; refreshRankResults(); };
+  c.querySelectorAll("select[data-rank]").forEach((el) => el.onchange = () => {
+    rankState[el.dataset.rank] = el.value; adminPagState("ranking").page = 1; refreshRankResults();
+  });
+  const z = c.querySelector("[data-rank-zero]");
+  if (z) z.onchange = () => { rankState.onlyZero = z.checked; adminPagState("ranking").page = 1; refreshRankResults(); };
+  const csv = c.querySelector("[data-rank-csv]");
+  if (csv) csv.onclick = exportRankingCSV;
+  const pr = c.querySelector("[data-rank-print]");
+  if (pr) pr.onclick = () => {
+    const w = window.open("", "_blank");
+    if (!w) return toast("Permita pop-ups para imprimir", "error");
+    const { rows } = computeRanking();
+    w.document.write(`<html><head><title>Ranking de jogos</title><style>body{font-family:sans-serif}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px;font-size:12px;text-align:left}</style></head><body><h2>Ranking de jogos — ${new Date().toLocaleDateString("pt-BR")}</h2><table><tr><th>#</th><th>Jogo</th><th>Categoria</th><th>Plataforma</th><th>Escolhas</th><th>%</th><th>Última</th></tr>${rows.map((r) => `<tr><td>${r.count ? r.pos : "-"}</td><td>${esc(r.game.name)}</td><td>${esc(r.game.category || "")}</td><td>${esc(r.game.subcategory || "")}</td><td>${r.count}</td><td>${r.share.toFixed(1)}%</td><td>${fmtRankDate(r.last)}</td></tr>`).join("")}</table></body></html>`);
+    w.document.close(); w.focus(); w.print();
+  };
+}
+
 function viewSettings() {
   const s = state.settings || {};
   const field = (name, label, type = "text") =>
@@ -1109,6 +1298,7 @@ function wireAdminActions() {
 
   // Controles de paginação dos menus
   wireAdminPagination();
+  wireRankingActions(c);
 
   // === ORDERS ===
   c.querySelectorAll("[data-view-jpg]").forEach((b) => b.onclick = () => {
