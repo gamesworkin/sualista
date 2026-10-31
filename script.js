@@ -108,7 +108,15 @@ function sortedGames(games) {
   return games.slice().sort((a, b) => gameNameCollator.compare(a.name || "", b.name || ""));
 }
 function normalizeSearch(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]/g, "");
+}
+/** Máscara de WhatsApp: (DD) 00000-0000 ou (DD) 0000-0000 */
+function maskPhone(value) {
+  const d = String(value || "").replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 function getAdminGames() {
   const q = normalizeSearch(state.adminGameSearch);
@@ -294,12 +302,9 @@ function getFilteredGames() {
   if (category) arr = arr.filter((g) => g.category === category);
   if (subcategory) arr = arr.filter((g) => g.subcategory === subcategory);
   if (search) {
-    const q = search.toLowerCase();
-    arr = arr.filter((g) =>
-      (g.name || "").toLowerCase().includes(q) ||
-      (g.code || "").toLowerCase().includes(q) ||
-      (g.category || "").toLowerCase().includes(q) ||
-      (g.subcategory || "").toLowerCase().includes(q)
+    const q = normalizeSearch(search);
+    if (q) arr = arr.filter((g) =>
+      [g.name, g.code, g.category, g.subcategory].some((v) => normalizeSearch(v).includes(q))
     );
   }
   if (sort === "alpha") arr = sortedGames(arr);
@@ -1266,7 +1271,7 @@ function viewSettings() {
   const area = (name, label) =>
     `<label style="display:flex;flex-direction:column;gap:6px;">
       <span style="color:var(--text-muted);font-size:13px;">${label}</span>
-      <textarea data-setting="${name}" rows="2" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;">${esc(s[name] || "")}</textarea>
+      <textarea data-setting="${name}" rows="2">${esc(s[name] || "")}</textarea>
     </label>`;
   return `
     <div class="panel">
@@ -1326,9 +1331,9 @@ function wireAdminActions() {
   });
   const os = c.querySelector("#orderSearch");
   if (os) os.oninput = () => {
-    const q = os.value.toLowerCase();
+    const q = normalizeSearch(os.value);
     c.querySelectorAll("#ordersTable tbody tr").forEach((tr) => {
-      tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
+      tr.style.display = normalizeSearch(tr.textContent).includes(q) ? "" : "none";
     });
   };
 
@@ -1454,7 +1459,7 @@ function openGameForm(editId) {
             </div>
             <input name="image" placeholder="URL da imagem (GitHub)" value="${esc(g.image || "")}"/>
           </div>
-          <textarea name="description" rows="3" placeholder="Descrição" style="background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;">${esc(g.description || "")}</textarea>
+          <textarea name="description" rows="3" placeholder="Descrição">${esc(g.description || "")}</textarea>
           <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-check"></i> Salvar</button>
         </form>
       </div>
@@ -1523,6 +1528,10 @@ function bindPublicUI() {
     renderCatalog();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+
+  const waInput = $("#checkoutForm").elements.whatsapp;
+  waInput.addEventListener("input", () => { waInput.value = maskPhone(waInput.value); validateCheckout(); });
+  $("#checkoutForm").elements.uf.addEventListener("change", validateCheckout);
 
   $("#searchInput").addEventListener("input", (e) => { state.filters.search = e.target.value; state.currentPage = 1; renderCatalog(); });
   $("#categoryFilter").addEventListener("change", (e) => { state.filters.category = e.target.value; state.currentPage = 1; renderCatalog(); });
